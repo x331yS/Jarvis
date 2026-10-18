@@ -12,18 +12,29 @@ class _LocalAssetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.paths: list[str] = []
+        self.remote: list[str] = []
+        self.scripts: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
         path = attributes.get("src") if tag == "script" else attributes.get("href")
+        if tag == "script" and path:
+            self.scripts.append(path)
+        if path and path.startswith(("http:", "https:", "//")):
+            self.remote.append(path)
         if path and not path.startswith(("qrc:", "http:", "https:", "//")):
             self.paths.append(path)
 
 
-def test_hud_local_assets_are_resolvable_from_embedded_page() -> None:
+def _parse_hud_page() -> tuple[Path, _LocalAssetParser]:
     page = ROOT / "src" / "desktop_app" / "web" / "index.html"
     parser = _LocalAssetParser()
     parser.feed(page.read_text(encoding="utf-8"))
+    return page, parser
+
+
+def test_hud_local_assets_are_resolvable_from_embedded_page() -> None:
+    page, parser = _parse_hud_page()
 
     missing = [
         asset
@@ -32,6 +43,22 @@ def test_hud_local_assets_are_resolvable_from_embedded_page() -> None:
     ]
 
     assert not missing, f"HUD page references missing local assets: {missing}"
+
+
+def test_hud_loads_bundled_threejs_before_the_scene_offline() -> None:
+    page, parser = _parse_hud_page()
+
+    assert not parser.remote, f"HUD must work offline, found remote assets: {parser.remote}"
+    three = [s for s in parser.scripts if Path(s).name.startswith("three.") and "min" in s]
+    assert three, "HUD page does not load a bundled Three.js build"
+    assert parser.scripts.index(three[0]) < parser.scripts.index("../js/three_scene.js")
+    assert "REVISION" in (page.parent / three[0]).resolve().read_text(encoding="utf-8")
+
+
+def test_hud_scene_renders_with_threejs_webgl() -> None:
+    scene = (ROOT / "src" / "desktop_app" / "js" / "three_scene.js").read_text(encoding="utf-8")
+
+    assert "THREE.WebGLRenderer" in scene
 
 
 def test_hud_uses_third_display_when_available() -> None:

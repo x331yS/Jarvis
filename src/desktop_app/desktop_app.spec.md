@@ -32,7 +32,7 @@ src/desktop_app/
 ├── web_ui_bridge.py     # Qt WebChannel bridge for the HUD
 ├── web/                 # HUD HTML
 ├── css/                 # HUD styles
-├── js/                  # HUD animations and behaviour
+├── js/                  # HUD animations and behaviour (Three.js scene; vendor/ holds the bundled three.min.js)
 └── desktop_assets/      # Icons and images
 ```
 
@@ -125,7 +125,7 @@ The central controller that manages:
 | **LogViewerWindow** | Real-time log output from the daemon, with "Report Issue" button |
 | **MemoryViewerWindow** | Web-based memory browser (Flask server) |
 | **FaceWindow** | Animated face that reacts to speaking state |
-| **JarvisHudWindow** | Full-screen local HUD with live assistant state and activity |
+| **JarvisHudWindow** | Full-screen local HUD with live assistant state and activity. A Three.js (WebGL) holographic arc reactor reacts to the assistant state; Three.js ships with the app so the HUD works offline, and the CSS reactor is shown when WebGL is unavailable |
 | **SettingsWindow** | Auto-generated config editor with tabbed categories |
 | **SetupWizard** | First-run configuration (Ollama, models, profile) |
 | **DictationHistoryWindow** | Scrollable list of past dictations with copy/delete/clear actions |

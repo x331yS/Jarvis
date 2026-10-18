@@ -44,6 +44,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "autostart"; Description: "Start Jarvis automatically when I sign in to Windows"; GroupDescription: "Startup:"; Flags: checkedonce
 Name: "cudalibs"; Description: "Download NVIDIA CUDA libraries for GPU-accelerated speech recognition (~1.1 GB download)"; GroupDescription: "GPU Acceleration:"; Check: HasNvidiaGPU; Flags: unchecked
 
+[InstallDelete]
+; Replace the PyInstaller internals wholesale so DLLs dropped from a newer
+; bundle cannot shadow system libraries (e.g. ICU for the Qt WebEngine HUD).
+; The downloaded cuda folder lives outside _internal and is kept.
+Type: filesandordirs; Name: "{app}\_internal"
+
 [Files]
 ; Bundle the entire PyInstaller onedir output
 Source: "..\..\dist\Jarvis\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

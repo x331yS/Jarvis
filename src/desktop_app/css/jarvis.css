@@ -58,6 +58,16 @@ body {
     opacity: 0.75;
 }
 
+/* The Three.js scene draws the reactor; the CSS one is the no-WebGL fallback.
+   The .reactor box stays in the layout as the slot the 3D reactor aligns to. */
+body.webgl-ready #space {
+    opacity: 1;
+}
+
+body.webgl-ready .reactor > * {
+    display: none;
+}
+
 .top-bar,
 .bottom-bar {
     position: absolute;
