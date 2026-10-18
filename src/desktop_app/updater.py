@@ -28,7 +28,7 @@ from jarvis.debug import debug_log
 from .paths import get_log_dir
 from .qt_worker import KeepAliveWorker
 
-GITHUB_REPO = "isair/jarvis"
+GITHUB_REPO = "x331yS/Jarvis"
 # Absolute path to macOS's ditto tool. Exposed as a module attribute so
 # tests (which run on non-macOS CI runners without /usr/bin/ditto) can
 # substitute a path that exists.

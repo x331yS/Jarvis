@@ -385,7 +385,7 @@ Components use `JARVIS_THEME_STYLESHEET` for consistent styling across all dialo
 
 The desktop app includes an auto-update mechanism:
 
-1. **Check**: Queries GitHub releases API for newer versions
+1. **Check**: Queries the GitHub releases API of the `x331yS/Jarvis` fork for newer versions
 2. **Notify**: Shows dialog with changelog and download option
 3. **Download**: Downloads new installer with progress bar
 4. **Install**: Platform-specific installation (see below)

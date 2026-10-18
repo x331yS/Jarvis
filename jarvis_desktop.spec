@@ -4,6 +4,7 @@ PyInstaller spec file for Jarvis Desktop App
 Builds a standalone executable for Windows, macOS, and Linux
 """
 
+import re
 import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
@@ -22,6 +23,22 @@ Prefix = .
 Plugins = PyQt6/Qt6/plugins
 """)
     print(f"Created qt.conf at {qt_conf_path}")
+
+# PyInstaller reads Qt's library info in isolated subprocesses. Preload Windows
+# ICU there so the Qt hooks (WebEngine included) can run against a conda env.
+# Conda keeps extension-module DLLs (e.g. libexpat for pyexpat) in
+# Library\bin, which must be on PATH for PyInstaller to resolve them.
+if sys.platform == 'win32':
+    import os
+    _qt_bootstrap = project_root / 'installer' / 'windows' / 'pyinstaller_bootstrap'
+    os.environ['PYTHONPATH'] = os.pathsep.join(
+        filter(None, [str(_qt_bootstrap), os.environ.get('PYTHONPATH')])
+    )
+    _conda_dll_dir = Path(sys.prefix) / 'Library' / 'bin'
+    if _conda_dll_dir.is_dir():
+        os.environ['PATH'] = os.pathsep.join(
+            filter(None, [str(_conda_dll_dir), os.environ.get('PATH')])
+        )
 
 # Collect all necessary data files
 # Note: Let PyInstaller's built-in hooks handle sounddevice, ctranslate2, and Qt WebEngine
@@ -287,6 +304,17 @@ a = Analysis(
     noarchive=False,
 )
 
+if sys.platform == 'win32':
+    _bundled_names = {Path(dest).name.lower() for dest, _src, _kind in a.binaries}
+    _missing = {'qtwebengineprocess.exe'} - _bundled_names
+    if _conda_dll_dir.is_dir() and (_conda_dll_dir / 'libexpat.dll').is_file():
+        _missing |= {'libexpat.dll'} - _bundled_names
+    if _missing:
+        raise SystemExit(
+            f"Required runtime files were not collected: {sorted(_missing)}. "
+            "The bundled app would crash at startup; check the warnings above."
+        )
+
 # Filter out heavy binaries on all platforms to reduce bundle size
 # Note: Be careful not to exclude libs needed by numpy/faster-whisper
 excluded_binary_patterns = [
@@ -326,6 +354,15 @@ for binary in a.binaries:
     # Exclude all VC runtime and system DLLs — use system-installed versions
     if base_name in excluded_system_dlls:
         print(f"Excluding system DLL (use VC++ Redistributable): {binary[0]}")
+        should_exclude = True
+
+    # Qt6Core needs the unversioned ICU exports of Windows' System32 ICU. A
+    # conda ICU in _internal shadows it (the bootloader's DLL directory is
+    # inherited by QtWebEngineProcess) and the HUD renderer fails to load.
+    if not should_exclude and sys.platform == 'win32' and re.fullmatch(
+        r'icu(uc|dt|in|io|tu)\d*\.dll', base_name
+    ):
+        print(f"Excluding conda ICU DLL (Qt uses Windows ICU): {binary[0]}")
         should_exclude = True
 
     # Pattern-based exclusions (heavy libraries)

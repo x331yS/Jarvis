@@ -113,6 +113,20 @@ class TestCheckForUpdates:
     """Tests for update checking."""
 
     @pytest.mark.unit
+    def test_queries_releases_of_the_personal_fork(self):
+        mock_response = MagicMock()
+        mock_response.json.return_value = []
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("desktop_app.updater.get_version", return_value=("1.0.0", "stable")):
+            with patch("requests.get", return_value=mock_response) as mock_get:
+                check_for_updates()
+
+        assert mock_get.call_args.args[0] == (
+            "https://api.github.com/repos/x331yS/Jarvis/releases"
+        )
+
+    @pytest.mark.unit
     def test_returns_no_update_when_current_version_matches(self):
         mock_response = MagicMock()
         mock_response.json.return_value = [

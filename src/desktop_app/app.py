@@ -25,8 +25,8 @@ import warnings
 warnings.filterwarnings('ignore', message='pkg_resources is deprecated',
                         category=UserWarning)
 
-# Qt's Windows build expects unversioned ICU exports. The conda ICU DLLs
-# bundled by PyInstaller use version-suffixed exports, so load Windows ICU first.
+# Qt's Windows build expects unversioned ICU exports. Conda's ICU DLLs use
+# version-suffixed exports and can shadow System32, so load Windows ICU first.
 from jarvis.debug import debug_log
 
 _WINDOWS_ICU_DLL_HANDLES = []
