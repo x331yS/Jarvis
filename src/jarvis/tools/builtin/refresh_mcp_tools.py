@@ -36,7 +36,7 @@ class RefreshMCPToolsTool(Tool):
     def run(self, args: Optional[Dict[str, Any]], context: ToolContext) -> ToolExecutionResult:
         """Execute MCP tools refresh."""
         try:
-            from ..registry import refresh_mcp_tools, get_cached_mcp_tools
+            from ..registry import refresh_mcp_tools, resolve_mcp_tool
 
             context.user_print("🔄 Refreshing MCP tools...")
 
@@ -56,12 +56,11 @@ class RefreshMCPToolsTool(Tool):
 
             # Build summary of discovered tools by server
             tools_by_server: Dict[str, list] = {}
+            mcps_config = getattr(context.cfg, "mcps", {}) or {}
             for tool_name in mcp_tools.keys():
-                if "__" in tool_name:
-                    server_name, tool_short_name = tool_name.split("__", 1)
-                    if server_name not in tools_by_server:
-                        tools_by_server[server_name] = []
-                    tools_by_server[server_name].append(tool_short_name)
+                route = resolve_mcp_tool(tool_name, mcps_config)
+                if route is not None:
+                    tools_by_server.setdefault(route[0], []).append(route[1])
 
             # Format result
             lines = [f"✅ Discovered {len(mcp_tools)} MCP tools:"]

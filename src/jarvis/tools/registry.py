@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple, List
+import re
 import threading
 import sys
 
@@ -47,6 +48,30 @@ BUILTIN_TOOLS = {
 _mcp_tools_cache: Dict[str, "ToolSpec"] = {}
 _mcp_tools_cache_lock = threading.Lock()
 _mcp_config_cache: Dict[str, Any] = {}
+
+_FUNCTION_NAME_UNSAFE = re.compile(r"[^A-Za-z0-9_-]")
+
+
+def mcp_tool_identifier(server_name: str, tool_name: str) -> str:
+    """Name an MCP tool ``server__tool`` as a valid LLM function identifier.
+
+    Configured server names may contain characters (e.g. spaces) that models
+    cannot emit in a function name, so those become underscores.
+    """
+    return f"{_FUNCTION_NAME_UNSAFE.sub('_', server_name)}__{tool_name}"
+
+
+def resolve_mcp_tool(identifier: str, mcps_config: Optional[Dict[str, Any]]) -> Optional[Tuple[str, str]]:
+    """Map an exposed MCP tool identifier back to ``(configured server, tool)``."""
+    if "__" not in identifier or not mcps_config:
+        return None
+    server_part, tool_name = identifier.split("__", 1)
+    if server_part in mcps_config:
+        return server_part, tool_name
+    for server_name in mcps_config:
+        if _FUNCTION_NAME_UNSAFE.sub("_", server_name) == server_part:
+            return server_name, tool_name
+    return None
 
 
 def initialize_mcp_tools(mcps_config: Dict[str, Any], verbose: bool = True) -> Tuple[Dict[str, "ToolSpec"], Dict[str, str]]:
@@ -159,8 +184,7 @@ def discover_mcp_tools(mcps_config: Dict[str, Any]) -> Tuple[Dict[str, ToolSpec]
                     if not tool_name:
                         continue
 
-                    # Create a unique tool name: server__toolname
-                    full_tool_name = f"{server_name}__{tool_name}"
+                    full_tool_name = mcp_tool_identifier(server_name, tool_name)
 
                     # Create a ToolSpec for this MCP tool
                     description = tool_info.get("description", f"Tool from {server_name} MCP server")
@@ -309,22 +333,22 @@ def run_tool_with_retries(
     name = raw_name
 
     # Check if tool name is a discovered MCP tool (server__toolname format)
-    if "__" in raw_name:
-        server_name, mcp_tool_name = raw_name.split("__", 1)
-        mcps_config = getattr(cfg, "mcps", {})
-        if mcps_config and server_name in mcps_config:
-            try:
-                if MCPClient is None:
-                    return ToolExecutionResult(success=False, reply_text=None, error_message="MCP client not available. Install 'mcp' package.")
+    mcps_config = getattr(cfg, "mcps", {})
+    mcp_route = resolve_mcp_tool(raw_name, mcps_config)
+    if mcp_route is not None:
+        server_name, mcp_tool_name = mcp_route
+        try:
+            if MCPClient is None:
+                return ToolExecutionResult(success=False, reply_text=None, error_message="MCP client not available. Install 'mcp' package.")
 
-                client = MCPClient(mcps_config)
-                result = client.invoke_tool(server_name=server_name, tool_name=mcp_tool_name, arguments=tool_args or {})
-                is_error = bool(result.get("isError", False))
-                text = result.get("text") or None
-                return ToolExecutionResult(success=(not is_error), reply_text=text, error_message=(text if is_error else None))
-            except Exception as e:
-                detail = _mcp_error_detail(e)
-                return ToolExecutionResult(success=False, reply_text=None, error_message=f"MCP tool '{raw_name}' error: {detail}")
+            client = MCPClient(mcps_config)
+            result = client.invoke_tool(server_name=server_name, tool_name=mcp_tool_name, arguments=tool_args or {})
+            is_error = bool(result.get("isError", False))
+            text = result.get("text") or None
+            return ToolExecutionResult(success=(not is_error), reply_text=text, error_message=(text if is_error else None))
+        except Exception as e:
+            detail = _mcp_error_detail(e)
+            return ToolExecutionResult(success=False, reply_text=None, error_message=f"MCP tool '{raw_name}' error: {detail}")
 
     # Friendly user print helper (non-debug only)
     def _user_print(message: str) -> None:

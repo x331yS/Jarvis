@@ -41,7 +41,7 @@ from .config import load_settings
 from .memory.db import Database
 from .memory.conversation import DialogueMemory, update_diary_from_dialogue_memory
 from .output.tts import create_tts_engine
-from .tools.registry import initialize_mcp_tools
+from .tools.registry import initialize_mcp_tools, resolve_mcp_tool
 from .debug import debug_log
 from .listening.listener import VoiceListener
 from .utils.location import get_location_context, is_location_available
@@ -861,11 +861,9 @@ def _run_daemon(smoke_test: bool = False) -> None:
             # Group tools by server for display
             tools_by_server: dict = {}
             for tool_name in mcp_tools.keys():
-                if "__" in tool_name:
-                    server_name = tool_name.split("__")[0]
-                    if server_name not in tools_by_server:
-                        tools_by_server[server_name] = []
-                    tools_by_server[server_name].append(tool_name)
+                route = resolve_mcp_tool(tool_name, mcps)
+                if route is not None:
+                    tools_by_server.setdefault(route[0], []).append(tool_name)
 
             for server_name in mcps.keys():
                 count = len(tools_by_server.get(server_name, []))

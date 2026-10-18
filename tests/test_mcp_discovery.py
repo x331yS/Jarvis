@@ -72,6 +72,47 @@ def test_discover_mcp_tools_handles_server_errors(discover_servers):
 
 
 @pytest.mark.unit
+def test_server_names_with_spaces_expose_valid_function_names(discover_servers):
+    """Models cannot emit spaces in function names; exposed names must be identifiers."""
+    import re
+
+    tools, errors = discover_servers({'Custom mcp': [{'name': 'spotify_play', 'description': 'Play'}]})
+
+    assert errors == {}
+    assert len(tools) == 1
+    (name,) = tools
+    assert re.fullmatch(r'[A-Za-z0-9_-]+', name)
+    assert name.endswith('__spotify_play')
+
+
+@pytest.mark.unit
+def test_tool_from_server_name_with_spaces_reaches_that_server(monkeypatch, discover_servers):
+    tools, _ = discover_servers({'Custom mcp': [{'name': 'spotify_play', 'description': 'Play'}]})
+    (exposed_name,) = tools
+    cfg = DummyCfg()
+    cfg.mcps = {'Custom mcp': {'command': 'fake'}}
+    invoked = []
+
+    class FakeClient:
+        def __init__(self, config):
+            pass
+
+        def invoke_tool(self, server_name, tool_name, arguments):
+            invoked.append((server_name, tool_name, arguments))
+            return {'text': 'playing', 'isError': False}
+
+    monkeypatch.setattr(registry, 'MCPClient', FakeClient)
+
+    result = run_tool_with_retries(
+        db=DummyDB(), cfg=cfg, tool_name=exposed_name, tool_args={},
+        system_prompt='', original_prompt='', redacted_text='', max_retries=0,
+    )
+
+    assert result.success is True
+    assert invoked == [('Custom mcp', 'spotify_play', {})]
+
+
+@pytest.mark.unit
 def test_generate_tools_description_includes_mcp_tools():
     tools = [
         registry.ToolSpec(name='server__read', description='Read a file from the server',
