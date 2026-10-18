@@ -180,11 +180,10 @@ class TestOllamaBackendChat:
         backend.chat(
             "qwen3.5:0.8b",
             [{"role": "user", "content": "hi"}],
-            extra_options={"options": {"max_tokens": 300, "num_ctx": 4096}},
+            extra_options={"options": {"max_tokens": 300}},
         )
         sent = mock_post.call_args.kwargs["json"]
         assert sent["options"]["num_predict"] == 300
-        assert sent["options"]["num_ctx"] == 4096
         assert "max_tokens" not in sent["options"]
 
     @patch("jarvis.llm.http.post")
@@ -282,6 +281,48 @@ class TestOllamaBackendChat:
 
         sent = mock_post.call_args.kwargs["json"]
         assert sent["options"] == {"num_ctx": 8192}
+
+
+class TestOllamaBackendResidentContext:
+    """Ollama reloads the whole model whenever ``num_ctx`` differs from the
+    loaded runner, so every call path must request one shared context size;
+    callers can only grow it, never shrink it."""
+
+    @staticmethod
+    def _sent_num_ctx_per_call_path(**overrides):
+        from jarvis.llm import OllamaBackend
+
+        with patch("jarvis.llm.http.post") as mock_post, \
+             patch("jarvis.llm.ollama.check_version", return_value=(True, "0.6")):
+            mock_post.return_value = _make_response(
+                json_data={"message": {"content": "ok"}}, status_code=200,
+            )
+            backend = OllamaBackend("http://localhost:11434")
+            backend.direct("m", "sys", "user", num_ctx=overrides.get("direct", 4096))
+            backend.streaming("m", "sys", "user")
+            backend.chat("m", [{"role": "user", "content": "hi"}],
+                         extra_options={"num_ctx": overrides.get("chat", 4096)})
+            backend.chat("m", [{"role": "user", "content": "hi"}])
+            backend.warm_up("m")
+            return [c.kwargs["json"]["options"].get("num_ctx") for c in mock_post.call_args_list]
+
+    def test_every_call_path_requests_the_same_context_size(self):
+        sizes = self._sent_num_ctx_per_call_path()
+        assert len(sizes) == 5
+        assert len(set(sizes)) == 1
+        assert sizes[0] is not None
+
+    def test_smaller_requests_are_raised_to_the_resident_size(self):
+        from jarvis.llm.ollama import RESIDENT_NUM_CTX
+
+        sizes = self._sent_num_ctx_per_call_path(direct=1024, chat=2048)
+        assert sizes == [RESIDENT_NUM_CTX] * 5
+
+    def test_larger_requests_are_honoured(self):
+        from jarvis.llm.ollama import RESIDENT_NUM_CTX
+
+        sizes = self._sent_num_ctx_per_call_path(direct=RESIDENT_NUM_CTX * 2)
+        assert sizes[0] == RESIDENT_NUM_CTX * 2
 
 
 class TestOllamaBackendPromptCaching:

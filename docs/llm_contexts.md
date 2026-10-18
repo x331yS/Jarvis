@@ -297,6 +297,7 @@ Every context is built against servers (Ollama, vLLM, SGLang, llama.cpp `llama-s
 3. **Stable-before-dynamic ordering** — the mostly-static block (persona, tool catalogue) opens the prompt; per-query blocks (digest, plan, hint) follow; the user query is the final token.
 4. **Per-reply memoisation** — the main loop's time/location context string is computed once per reply, so all in-loop calls of one reply are byte-identical from token 1; the KV prefix extends through the whole history, not just the system message.
 5. **Ollama payloads set `cache_prompt: true` explicitly** on `chat()`, `direct()`, and `streaming()` so the server always retains the request's KV state.
+6. **One resident context window on Ollama**: Ollama reloads the model whenever `num_ctx` changes, so `OllamaBackend` raises every request (including `warm_up()`) to at least `RESIDENT_NUM_CTX` (8192). The per-context `num_ctx` figures above are minimums; on Ollama the effective window is never smaller than the resident size.
 
 Anything that reorders messages between calls, injects a changing value at the head of a prompt, or rebuilds a system prompt with per-call content breaks prefix reuse for every token after the divergence point.
 

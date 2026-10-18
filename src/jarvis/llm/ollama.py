@@ -22,6 +22,19 @@ from .backend import (
     strip_nonstandard_message_fields,
 )
 
+# Ollama reloads the whole model whenever a request's ``num_ctx`` differs
+# from the loaded runner, which costs ~10s per switch on a consumer GPU. Every
+# call path therefore requests this shared window; callers may grow it but
+# never shrink it.
+RESIDENT_NUM_CTX = 8192
+
+
+def _resident_num_ctx(requested: Any = None) -> int:
+    try:
+        return max(int(requested), RESIDENT_NUM_CTX)
+    except (TypeError, ValueError):
+        return RESIDENT_NUM_CTX
+
 
 def check_version(base_url: str, timeout: float = 5.0) -> tuple[bool, str | None]:
     """Probe ``GET /api/version`` and return ``(True, version_str)`` if the
@@ -111,11 +124,9 @@ class OllamaBackend(LLMBackend):
         """Direct LLM call without temporal context, location, or other
         ``ask_coach`` features.
 
-        ``num_ctx`` controls Ollama's context window for this call.
-        Default 4096 is fine for small classification-shaped passes;
-        callers that assemble richer prompts (planner with dialogue +
-        memory + tool catalogue) should pass a larger value to avoid
-        silent truncation.
+        ``num_ctx`` is the minimum context window this call needs. Ollama
+        receives at least ``RESIDENT_NUM_CTX`` so the loaded runner is
+        shared with every other call path instead of being reloaded.
 
         ``temperature`` is forwarded to Ollama when set. Pass ``0.0``
         for classification / extraction calls where determinism beats
@@ -133,7 +144,7 @@ class OllamaBackend(LLMBackend):
             {"role": "user", "content": user_content},
         ]
 
-        options: Dict[str, Any] = {"num_ctx": num_ctx}
+        options: Dict[str, Any] = {"num_ctx": _resident_num_ctx(num_ctx)}
         if temperature is not None:
             options["temperature"] = temperature
         if max_tokens is not None:
@@ -205,7 +216,7 @@ class OllamaBackend(LLMBackend):
             "messages": messages,
             "stream": True,
             "cache_prompt": True,
-            "options": {"num_ctx": 4096},
+            "options": {"num_ctx": RESIDENT_NUM_CTX},
             "think": _thinking_level(chat_model, thinking),
         }
 
@@ -268,7 +279,7 @@ class OllamaBackend(LLMBackend):
             "messages": sanitised,
             "stream": False,
             "cache_prompt": True,
-            "options": {"num_ctx": 8192},
+            "options": {"num_ctx": RESIDENT_NUM_CTX},
             "think": thinking,
         }
         # ``extra_options`` keys land at the Ollama wire root for known
@@ -294,6 +305,7 @@ class OllamaBackend(LLMBackend):
                     payload["options"][key] = value
 
         payload["think"] = _thinking_level(chat_model, payload["think"])
+        payload["options"]["num_ctx"] = _resident_num_ctx(payload["options"].get("num_ctx"))
 
         if tools and isinstance(tools, list) and len(tools) > 0:
             payload["tools"] = tools
@@ -412,7 +424,7 @@ class OllamaBackend(LLMBackend):
                     ],
                     "stream": False,
                     "keep_alive": keep_alive,
-                    "options": {"num_predict": 1, "temperature": 0.0},
+                    "options": {"num_predict": 1, "temperature": 0.0, "num_ctx": RESIDENT_NUM_CTX},
                 },
                 timeout=remaining,
             ) as resp:
