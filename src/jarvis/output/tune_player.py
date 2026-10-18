@@ -9,94 +9,63 @@ from ..debug import debug_log
 from ..utils.audio_lock import portaudio_lock
 
 
-def _generate_thinking_pad_samples() -> tuple[np.ndarray, int]:
-    """Generate the thinking pad as a raw int16 mono buffer.
+def _generate_acknowledgement_cue_samples() -> tuple[np.ndarray, int]:
+    """Generate the acknowledgement cue as a raw int16 mono buffer.
 
-    Designed to run indefinitely while Jarvis thinks. Two tricks make
-    the looping imperceptible:
-
-    1. Mathematical seam: every sine frequency (in Hz) is an integer,
-       so start and end samples match exactly — no click at the wrap
-       point.
-    2. Short duration (10s): the sounddevice callback loops the
-       buffer natively in the OS audio thread, so there's no
-       per-iteration gap. A shorter buffer keeps generation cheap
-       (~70ms) and memory small.
-
-    Tone character — choir-"ahh" / bowed-string pad:
-    - A major triad (A3 / C#4 / E4) with a natural harmonic spectrum
-      (fundamental only) so each voice has real
-      timbre instead of sounding like a pure sine.
-    - Three-way unison detune per chord tone (-1 Hz, 0, +1 Hz) —
-      mirrors how an ensemble of human singers or strings is never
-      perfectly in tune, giving chorus-like warmth and body and a
-      gentle ~1 Hz beat between the outer layers.
+    A single soft "doum": an A major triad (A3 / C#4 / E4) with ±1 Hz
+    unison detune for warmth, a fast attack and an exponential decay to
+    silence. It plays once when Jarvis accepts a request, so the user
+    knows they were heard without a repeating pulse during long replies.
 
     Returns (int16 mono samples, sample_rate).
     """
     sample_rate = 44100
-    # 10s buffer = 5 pulse cycles of 2s each (1s tone + 1s silence).
-    duration_s = 10
-    pulse_cycle_s = 2.0
-    tone_s = 1.0  # audible portion per cycle
-    attack_s = 0.008  # ~8ms fast attack gives the slight "click"
+    tone_s = 1.0
+    attack_s = 0.008
 
-    chord_roots = (220, 275, 330)  # A3, ~C#4, ~E4 — integer Hz for seamless seam
+    chord_roots = (220, 275, 330)
     unison_offsets = (-1, 0, 1)
 
-    n = int(sample_rate * duration_s)
+    n = int(sample_rate * tone_s)
     t = np.arange(n, dtype=np.float64) / sample_rate
     two_pi = 2 * np.pi
 
-    # Single-cycle envelope: fast linear attack → exponential decay →
-    # silence for the rest of the cycle. Tiles across the whole buffer.
-    cycle_len = int(sample_rate * pulse_cycle_s)
-    tone_len = int(sample_rate * tone_s)
     attack_len = max(1, int(sample_rate * attack_s))
-    decay_len = tone_len - attack_len
-    one_cycle = np.zeros(cycle_len, dtype=np.float64)
-    one_cycle[:attack_len] = np.linspace(0.0, 1.0, attack_len, endpoint=True)
-    # Exponential decay from 1.0 down to effectively 0 over the tone body.
-    decay = np.exp(-4.0 * np.arange(decay_len) / decay_len)
-    one_cycle[attack_len:tone_len] = decay
-    # Tile complete pulse cycles across the sample buffer.
-    num_cycles = n // cycle_len
-    envelope = np.zeros(n, dtype=np.float64)
-    for i in range(num_cycles):
-        envelope[i * cycle_len:(i + 1) * cycle_len] = one_cycle
+    envelope = np.empty(n, dtype=np.float64)
+    envelope[:attack_len] = np.linspace(0.0, 1.0, attack_len, endpoint=True)
+    decay_len = n - attack_len
+    envelope[attack_len:] = np.exp(-6.0 * np.arange(decay_len) / decay_len)
+    # Short linear fade so the buffer ends exactly at zero (no click).
+    fade_len = sample_rate // 50
+    envelope[-fade_len:] *= np.linspace(1.0, 0.0, fade_len, endpoint=True)
 
-    # Build the triad once: three pure sines per chord tone with ±1 Hz
-    # unison detune for the characteristic beat.
     tone = np.zeros(n, dtype=np.float64)
     for root in chord_roots:
         for offset in unison_offsets:
-            f = root + offset
-            tone += np.sin(two_pi * f * t)
+            tone += np.sin(two_pi * (root + offset) * t)
     peak = float(np.max(np.abs(tone))) or 1.0
-    tone = tone / peak
-
-    signal = tone * envelope * 0.38
+    signal = tone / peak * envelope * 0.38
 
     samples = np.clip(signal * 32767, -32768, 32767).astype(np.int16)
     return samples, sample_rate
 
 
-_THINKING_PAD_SAMPLES: Optional[tuple[np.ndarray, int]] = None
+_ACKNOWLEDGEMENT_CUE_SAMPLES: Optional[tuple[np.ndarray, int]] = None
 
 
-def _get_thinking_pad_samples() -> tuple[np.ndarray, int]:
+def _get_acknowledgement_cue_samples() -> tuple[np.ndarray, int]:
     """Get cached raw int16 samples for sounddevice playback."""
-    global _THINKING_PAD_SAMPLES
-    if _THINKING_PAD_SAMPLES is None:
-        _THINKING_PAD_SAMPLES = _generate_thinking_pad_samples()
-    return _THINKING_PAD_SAMPLES
+    global _ACKNOWLEDGEMENT_CUE_SAMPLES
+    if _ACKNOWLEDGEMENT_CUE_SAMPLES is None:
+        _ACKNOWLEDGEMENT_CUE_SAMPLES = _generate_acknowledgement_cue_samples()
+    return _ACKNOWLEDGEMENT_CUE_SAMPLES
 
 
 def _prewarm_cache() -> None:
     """Pre-generate samples off the hot path so the first start_tune()
     doesn't compete with the first LLM call for CPU."""
     try:
-        _get_thinking_pad_samples()
+        _get_acknowledgement_cue_samples()
     except Exception as exc:
         debug_log(f"thinking tune: prewarm failed: {exc!r}", category="tune")
 
@@ -105,7 +74,10 @@ threading.Thread(target=_prewarm_cache, daemon=True).start()
 
 
 class TunePlayer:
-    """Plays a thinking-pad tune in a loop while Jarvis is processing.
+    """Plays the acknowledgement cue once when Jarvis starts processing.
+
+    The stream stays open (silent) until ``stop_tune`` so repeated starts
+    during one request do not replay the cue.
 
     Uses sounddevice (PortAudio) for playback, which is the same API TTS
     uses. This matters: if the tune held the audio output device via a
@@ -175,7 +147,7 @@ class TunePlayer:
                 return
 
             try:
-                samples, sample_rate = _get_thinking_pad_samples()
+                samples, sample_rate = _get_acknowledgement_cue_samples()
             except Exception as exc:
                 debug_log(f"thinking tune: sample generation failed: {exc!r}", category="tune")
                 self._play_fallback_tune()
@@ -186,18 +158,11 @@ class TunePlayer:
 
             def callback(outdata, frames, time_info, status):
                 # No I/O here — this runs in the realtime audio thread.
-                start = position[0]
-                end = start + frames
-                if end <= total:
-                    outdata[:, 0] = samples[start:end]
-                    position[0] = end % total
-                else:
-                    # Wrap around the seamless seam.
-                    first = total - start
-                    outdata[:first, 0] = samples[start:total]
-                    remainder = frames - first
-                    outdata[first:, 0] = samples[:remainder]
-                    position[0] = remainder
+                start = min(position[0], total)
+                played = min(frames, total - start)
+                outdata[:played, 0] = samples[start:start + played]
+                outdata[played:, 0] = 0
+                position[0] = start + played
 
             try:
                 with portaudio_lock:

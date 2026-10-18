@@ -22,53 +22,43 @@ import pytest
 
 from jarvis.output.tune_player import (
     TunePlayer,
-    _generate_thinking_pad_samples,
-    _get_thinking_pad_samples,
+    _generate_acknowledgement_cue_samples,
+    _get_acknowledgement_cue_samples,
 )
 
 
 pytestmark = pytest.mark.unit
 
 
+def _audible_onsets(samples, rate):
+    """Count silent-to-audible transitions over 100ms windows."""
+    win = rate // 10
+    loud = [
+        int(abs(samples[i : i + win]).max()) > 0.10 * 32767
+        for i in range(0, samples.size - win + 1, win)
+    ]
+    return sum(1 for i, is_loud in enumerate(loud) if is_loud and (i == 0 or not loud[i - 1]))
+
+
 # --- Sample generation -----------------------------------------------
 
-def test_thinking_pad_samples_have_expected_shape():
-    samples, rate = _generate_thinking_pad_samples()
+def test_acknowledgement_cue_samples_have_expected_shape():
+    samples, rate = _generate_acknowledgement_cue_samples()
     assert rate == 44100
     assert samples.dtype.name == "int16"
     assert samples.ndim == 1
-    # Long enough to contain several pulse-silence cycles.
-    assert samples.size / rate >= 5.0
 
 
-def test_thinking_pad_samples_cached():
-    a = _get_thinking_pad_samples()
-    b = _get_thinking_pad_samples()
+def test_acknowledgement_cue_samples_cached():
+    a = _get_acknowledgement_cue_samples()
+    b = _get_acknowledgement_cue_samples()
     assert a is b
 
 
-def test_thinking_pad_seam_is_effectively_seamless():
-    samples, _ = _generate_thinking_pad_samples()
-    first = int(samples[0])
-    last = int(samples[-1])
-    # Seam step must be well under full-scale; observed ≈ 500.
-    assert abs(first - last) < 0.05 * 32767
-
-
-def test_thinking_pad_breathes():
-    """The pad is intentionally not continuous — it has a short audible
-    breath followed by a silent pause each loop so long thinking runs
-    aren't fatiguing. Verify both extremes exist."""
-    samples, rate = _generate_thinking_pad_samples()
-    win = rate // 10  # 100ms windows
-    peaks = [
-        int(abs(samples[i : i + win]).max())
-        for i in range(0, samples.size - win, win)
-    ]
-    # At least one window is clearly audible (the hold section).
-    assert max(peaks) > 0.10 * 32767
-    # At least one window is effectively silent (the rest pause).
-    assert min(peaks) < 0.005 * 32767
+def test_acknowledgement_cue_is_a_single_pulse_that_fades_out():
+    samples, rate = _generate_acknowledgement_cue_samples()
+    assert _audible_onsets(samples, rate) == 1
+    assert int(abs(samples[-rate // 20 :]).max()) < 0.005 * 32767
 
 
 # --- TunePlayer lifecycle --------------------------------------------------
@@ -187,8 +177,8 @@ def test_fallback_when_sounddevice_unavailable(monkeypatch):
     assert not tp.is_playing()
 
 
-def test_stream_callback_wraps_seamlessly(monkeypatch):
-    """Every frame matches the looping PCM buffer, including the seam."""
+def test_long_thinking_plays_the_cue_once_then_stays_silent(monkeypatch):
+    """A long reply acknowledges the user once instead of pulsing repeatedly."""
     import numpy as np
 
     captured = {}
@@ -205,13 +195,14 @@ def test_stream_callback_wraps_seamlessly(monkeypatch):
     player.start_tune()
     try:
         assert callback_ready.wait(timeout=1.0), "Playback callback did not become available"
-        samples, _ = _get_thinking_pad_samples()
+        _, rate = _get_acknowledgement_cue_samples()
         frames = 1024
         out = np.empty((frames, 1), dtype=np.int16)
-        for offset in range(0, samples.size + frames, frames):
+        played = []
+        for _ in range(0, rate * 15, frames):
             captured["callback"](out, frames, None, None)
-            expected = samples[np.arange(offset, offset + frames) % samples.size]
-            np.testing.assert_array_equal(out[:, 0], expected)
+            played.append(out[:, 0].copy())
+        assert _audible_onsets(np.concatenate(played), rate) == 1
     finally:
         player.stop_tune()
 

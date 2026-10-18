@@ -360,6 +360,8 @@ To minimise perceived latency, audio and visual feedback starts **immediately af
 
 If the intent judge later rejects the query with high confidence, the beep is stopped and face state reverts to IDLE. This brief false-positive beep is acceptable — users prefer immediate acknowledgement over delayed but perfect accuracy.
 
+The thinking beep is a single acknowledgement cue: it plays once per accepted request and does not repeat while the reply is generated. Further start calls during the same request are no-ops until the beep is stopped.
+
 **Face state is not set during TTS** — the beep is suppressed while TTS is playing to avoid self-triggering.
 
 ## Low-Confidence Rejection Events
