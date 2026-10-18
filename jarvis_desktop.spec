@@ -24,6 +24,28 @@ Plugins = PyQt6/Qt6/plugins
 """)
     print(f"Created qt.conf at {qt_conf_path}")
 
+# Refuse to bundle from an environment whose installed packages are off their
+# requirements.txt pins (e.g. an old faster-whisper with a VAD crash).
+sys.path.insert(0, str(src_path))
+from importlib.metadata import PackageNotFoundError, version as _installed_version
+from desktop_app.build_checks import pinned_version_mismatches
+
+
+def _version_or_none(name):
+    try:
+        return _installed_version(name)
+    except PackageNotFoundError:
+        return None
+
+
+_pin_mismatches = pinned_version_mismatches(project_root / 'requirements.txt', _version_or_none)
+if _pin_mismatches:
+    details = ", ".join(f"{name} (pinned {want}, installed {have})" for name, want, have in _pin_mismatches)
+    raise SystemExit(
+        f"Build environment does not match requirements.txt: {details}. "
+        "Run: pip install -r requirements.txt"
+    )
+
 # PyInstaller reads Qt's library info in isolated subprocesses. Preload Windows
 # ICU there so the Qt hooks (WebEngine included) can run against a conda env.
 # Conda keeps extension-module DLLs (e.g. libexpat for pyexpat) in

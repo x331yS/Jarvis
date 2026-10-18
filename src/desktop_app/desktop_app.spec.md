@@ -513,6 +513,7 @@ content and the report-issue body, so these aborts become diagnosable.
 
 - Desktop builds include faster-whisper's local speech detector assets. The installed engine's Turbo capability remains available in the frozen executable.
 - The speech runtime uses faster-whisper 1.2.1 with PyAV 11 or 12. Recognition and speech detection run locally.
+- The build stops when an installed package differs from its exact `==` pin in `requirements.txt` for the current platform. Pinned packages absent from the build environment are skipped.
 
 - macOS arm64 desktop builds include the MLX Whisper backend, its tokeniser/audio assets, native MLX libraries and `mlx/lib/mlx.metallib`. SciPy remains available for word alignment.
 - The MLX namespace is collected explicitly rather than recursively, and the optional PyTorch Whisper implementation is excluded from collection. Numba uses the PyInstaller dependency hook.
