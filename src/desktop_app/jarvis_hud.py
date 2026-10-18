@@ -30,6 +30,35 @@ def _select_hud_screen(screens, primary_screen):
     return primary_screen
 
 
+def show_composited_fullscreen(window, geometry) -> None:
+    """Show ``window`` full-screen over ``geometry``.
+
+    On Windows a borderless GPU window covering a monitor is promoted out of
+    DWM composition; any overlay or notification appearing over it forces a
+    switch back that shows as a brief black frame. Keeping ``WS_BORDER`` (the
+    fix Qt documents for full-screen OpenGL windows) keeps the HUD composited.
+    """
+    window.setGeometry(geometry)
+    window.showFullScreen()
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        hwnd = int(window.winId())
+        gwl_style = -16
+        ws_border = 0x00800000
+        style = user32.GetWindowLongW(hwnd, gwl_style)
+        if not style & ws_border:
+            user32.SetWindowLongW(hwnd, gwl_style, style | ws_border)
+            # SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
+            user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020)
+        debug_log("JARVIS HUD kept composited with WS_BORDER", "desktop")
+    except Exception as exc:
+        debug_log(f"JARVIS HUD border style failed: {exc!r}", "desktop")
+
+
 class JarvisHudWindow(QMainWindow):
     """
     Full-screen Iron-Man/JARVIS style HUD.
@@ -93,10 +122,10 @@ class JarvisHudWindow(QMainWindow):
                 f"Opening JARVIS HUD on the {display_description}",
                 "desktop",
             )
-            self.setGeometry(screen.geometry())
+            show_composited_fullscreen(self, screen.geometry())
         else:
             debug_log("No display is available for the JARVIS HUD", "desktop")
-        self.showFullScreen()
+            self.showFullScreen()
         self.raise_()
         self.activateWindow()
 
