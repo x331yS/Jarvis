@@ -34,7 +34,7 @@ ignores" (turn 2) — are both represented in the assertions.
 import pytest
 from unittest.mock import patch
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import ToolCallCapture, create_mock_tool_run
 
 

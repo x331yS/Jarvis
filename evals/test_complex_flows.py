@@ -19,7 +19,7 @@ With the default small-model bar:
 import pytest
 from unittest.mock import patch
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import ToolCallCapture, JUDGE_MODEL, JUDGE_BASE_URL
 
 

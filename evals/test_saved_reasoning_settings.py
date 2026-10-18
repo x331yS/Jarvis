@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import voice_config
 from jarvis.config import load_settings
 from jarvis.llm import get_llm_backend

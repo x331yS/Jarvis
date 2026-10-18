@@ -11,7 +11,7 @@ import pytest
 
 from evals.memory_tool_grounding import assert_usable_answer, assert_forecast_reply
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import (
     ToolCallCapture,
     JUDGE_MODEL,

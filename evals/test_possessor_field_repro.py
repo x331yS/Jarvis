@@ -27,7 +27,7 @@ Run: EVAL_JUDGE_MODEL=gemma4:e2b ./scripts/run_evals.sh possessor_field
 import pytest
 from unittest.mock import MagicMock, patch
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import ToolCallCapture, create_mock_tool_run
 
 

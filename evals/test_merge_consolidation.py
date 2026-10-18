@@ -24,7 +24,7 @@ from typing import List
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import JUDGE_MODEL
 
 from jarvis.memory.graph_ops import merge_node_data

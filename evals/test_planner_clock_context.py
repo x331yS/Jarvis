@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import voice_config
 from jarvis.reply import planner
 from jarvis.tools.builtin.nutrition.fetch_meals import FetchMealsTool, _normalise_time_range

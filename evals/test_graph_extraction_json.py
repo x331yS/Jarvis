@@ -3,7 +3,7 @@ import unicodedata
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import voice_config
 from jarvis.memory.graph_ops import extract_graph_memories
 

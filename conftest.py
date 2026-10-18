@@ -58,5 +58,3 @@ def pytest_sessionfinish(session, exitstatus):
         sys.stderr.write(message + "\n")
     if session.exitstatus == pytest.ExitCode.OK:
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
-
-

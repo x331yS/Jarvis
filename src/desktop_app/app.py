@@ -6,6 +6,7 @@ Supports Windows, Ubuntu (Linux), and macOS.
 """
 
 from __future__ import annotations
+import ctypes
 import sys
 import os
 import time
@@ -23,6 +24,37 @@ os.environ.setdefault('TQDM_POSITION', '-1')
 import warnings
 warnings.filterwarnings('ignore', message='pkg_resources is deprecated',
                         category=UserWarning)
+
+# Qt's Windows build expects unversioned ICU exports. The conda ICU DLLs
+# bundled by PyInstaller use version-suffixed exports, so load Windows ICU first.
+from jarvis.debug import debug_log
+
+_WINDOWS_ICU_DLL_HANDLES = []
+
+
+def _preload_windows_icu() -> None:
+    if sys.platform != "win32":
+        return
+
+    system_icu = os.path.join(
+        os.environ.get("SystemRoot", r"C:\Windows"), "System32", "icuuc.dll"
+    )
+    if not os.path.isfile(system_icu):
+        raise FileNotFoundError(
+            f"Windows ICU library required by Qt was not found: {system_icu}"
+        )
+
+    try:
+        handle = ctypes.WinDLL(system_icu, winmode=0x1100)
+    except OSError as exc:
+        debug_log(f"Failed to preload Windows ICU library {system_icu}: {exc}", "desktop")
+        raise
+
+    _WINDOWS_ICU_DLL_HANDLES.append(handle)
+    debug_log(f"Preloaded Windows ICU library from {system_icu}", "desktop")
+
+
+_preload_windows_icu()
 
 # Note: QtWebEngine is not used on macOS bundled apps due to sandbox/bundling issues
 # The Memory Viewer opens in the system browser instead (see MemoryViewerWindow)
@@ -63,13 +95,18 @@ except ImportError:
     HAS_WEBENGINE = False
     QWebEngineView = None
 
-from jarvis.debug import debug_log
+from jarvis.config import (
+    get_config_path,
+    _default_db_path,
+    get_model_recommendations,
+    Settings,
+)
 from jarvis.llm.model_names import missing_ollama_models
-from jarvis.config import get_config_path, _default_db_path, get_model_recommendations, Settings
 from desktop_app.diary_dialog import DiaryUpdateDialog
 from desktop_app.themes import JARVIS_THEME_STYLESHEET, COLORS, apply_theme
 from desktop_app.log_output import LogStream, clean_log, parse_progress
 from desktop_app.face_widget import FaceWindow
+from desktop_app.jarvis_hud import JarvisHudWindow
 
 
 _LOG_SEPARATOR = "─" * 50
@@ -1803,6 +1840,15 @@ class JarvisSystemTray:
         # in the main thread, which is important for cross-thread signal delivery
         self.face_window = FaceWindow()
 
+        # QtWebEngine is not used by bundled macOS apps; keep the animated
+        # face available there and whenever the optional HUD engine is absent.
+        self.hud_window = None
+        if sys.platform != 'darwin' and JarvisHudWindow.is_available():
+            self.hud_window = JarvisHudWindow()
+            self.log_signals.new_log.connect(self.hud_window.on_log)
+        else:
+            debug_log("JARVIS HUD unavailable; using the animated face window", "desktop")
+
         # Create dictation history window (hidden by default)
         from desktop_app.dictation_history import DictationHistoryWindow
         from jarvis.dictation.history import DictationHistory
@@ -2212,18 +2258,15 @@ class JarvisSystemTray:
                 show_update_error_dialog(str(e))
 
     def show_launch_windows(self) -> None:
-        """Open the log viewer and face window once at app launch.
+        """Open the JARVIS display and log viewer once at app launch."""
+        if self.hud_window is not None:
+            self.hud_window.show_fullscreen()
+        else:
+            self.face_window.show()
+            self.face_window.raise_()
 
-        Starting or stopping the assistant never changes window visibility
-        (start_daemon/stop_daemon leave it untouched), so the
-        launch windows are opened here explicitly instead of inside
-        start_daemon.
-        """
         self.log_viewer.show()
         self.log_viewer.raise_()
-        self.log_viewer.activateWindow()
-        self.face_window.show()
-        self.face_window.raise_()
 
     def show_log_viewer(self) -> None:
         """Show the log viewer window and bring it to front."""
@@ -3197,16 +3240,21 @@ def _smoke_test_main() -> int:
     # closes their buffers, corrupting output capture for the process).
     try:
         import io
-        for _stream_name in ("stdout", "stderr"):
-            _stream = getattr(sys, _stream_name)
-            _real = getattr(sys, "__" + _stream_name, None)
-            if _stream is None:
-                setattr(sys, _stream_name, io.StringIO())
-            elif (getattr(sys, "frozen", False) or sys.platform == "win32") \
-                    and (getattr(sys, "frozen", False) or _stream is _real) \
-                    and hasattr(_stream, "buffer") and hasattr(_stream.buffer, "write"):
-                setattr(sys, _stream_name, io.TextIOWrapper(
-                    _stream.buffer, encoding="utf-8", errors="replace"))
+        if getattr(sys, "frozen", False):
+            # Windowed executables may expose console streams whose handles
+            # exist but fail with OSError when written.
+            sys.stdout = io.StringIO()
+            sys.stderr = io.StringIO()
+        else:
+            for _stream_name in ("stdout", "stderr"):
+                _stream = getattr(sys, _stream_name)
+                _real = getattr(sys, "__" + _stream_name, None)
+                if _stream is None:
+                    setattr(sys, _stream_name, io.StringIO())
+                elif sys.platform == "win32" and _stream is _real \
+                        and hasattr(_stream, "buffer") and hasattr(_stream.buffer, "write"):
+                    setattr(sys, _stream_name, io.TextIOWrapper(
+                        _stream.buffer, encoding="utf-8", errors="replace"))
     except Exception:
         pass
 

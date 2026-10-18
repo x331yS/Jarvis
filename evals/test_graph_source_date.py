@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import voice_config
 from jarvis.memory import graph_ops
 from jarvis.memory.graph import GraphMemoryStore

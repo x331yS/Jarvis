@@ -51,6 +51,35 @@ class TestEntryPointImports:
         )
 
 
+    def test_windows_app_preloads_compatible_icu_before_qt_import(self):
+        """The Windows entry point must load system ICU before PyQt resolves its DLLs."""
+        if sys.platform != "win32":
+            pytest.skip("Windows Qt DLL loading is platform-specific")
+
+        repo_root = Path(__file__).resolve().parent.parent
+        conda_icu_dir = repo_root / ".mamba_env" / "Library" / "bin"
+        if not (conda_icu_dir / "icuuc.dll").is_file():
+            pytest.skip("The project conda ICU DLL is unavailable")
+
+        env = os.environ.copy()
+        env["PATH"] = os.pathsep.join((str(conda_icu_dir), env.get("PATH", "")))
+        env["PYTHONPATH"] = os.pathsep.join(
+            (str(repo_root / "src"), env.get("PYTHONPATH", ""))
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", "import desktop_app.app"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=30,
+        )
+
+        assert result.returncode == 0, (
+            "The Windows desktop entry point could not import PyQt with the "
+            f"project ICU DLL on PATH.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+
 class TestOllamaRuntimeFlags:
     """The desktop startup must only launch/verify Ollama when a local
     provider actually uses it. A pure OpenAI-compatible setup should skip
@@ -1434,6 +1463,24 @@ class TestDesktopSmokeTest:
         if failure == "qt":
             daemon_main.assert_not_called()
 
+    def test_frozen_smoke_test_handles_invalid_console_streams(self, runtime, monkeypatch):
+        app, _qt, daemon_main = runtime
+
+        class InvalidConsoleStream:
+            def write(self, _text):
+                raise OSError(22, "Invalid argument")
+
+            def flush(self):
+                raise OSError(22, "Invalid argument")
+
+        monkeypatch.setattr(app.sys, "frozen", True, raising=False)
+        monkeypatch.setattr(app.sys, "stdout", InvalidConsoleStream())
+        monkeypatch.setattr(app.sys, "stderr", InvalidConsoleStream())
+        daemon_main.side_effect = RuntimeError("Simulated init failure")
+
+        assert app._smoke_test_main() == 1
+        daemon_main.assert_called_once_with(smoke_test=True)
+
     def test_main_routes_smoke_test_flag(self, runtime, monkeypatch):
         app, _qt, _daemon_main = runtime
         app.sys.argv = ["Jarvis", "--smoke-test"]
@@ -1836,21 +1883,34 @@ class TestListeningWindowVisibility:
         tray.face_window.hide.assert_not_called()
         tray.log_viewer.hide.assert_not_called()
 
-    def test_show_launch_windows_opens_log_and_face_windows(self, qapp):
-        """The launch hook opens the log and face windows once at startup."""
+    def test_show_launch_windows_opens_hud_and_log_windows(self, qapp):
+        """The launch hook opens the HUD and log viewer once at startup."""
         import desktop_app.app as app_mod
 
         tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
         tray.log_viewer = MagicMock()
-        tray.face_window = MagicMock()
+        tray.hud_window = MagicMock()
 
         tray.show_launch_windows()
 
+        tray.hud_window.show_fullscreen.assert_called_once()
         tray.log_viewer.show.assert_called_once()
         tray.log_viewer.raise_.assert_called_once()
-        tray.log_viewer.activateWindow.assert_called_once()
+        tray.log_viewer.activateWindow.assert_not_called()
+
+    def test_show_launch_windows_falls_back_to_face_without_hud(self, qapp):
+        import desktop_app.app as app_mod
+
+        tray = app_mod.JarvisSystemTray.__new__(app_mod.JarvisSystemTray)
+        tray.hud_window = None
+        tray.face_window = MagicMock()
+        tray.log_viewer = MagicMock()
+
+        tray.show_launch_windows()
+
         tray.face_window.show.assert_called_once()
         tray.face_window.raise_.assert_called_once()
+        tray.log_viewer.show.assert_called_once()
 
     def test_launch_flow_wires_launch_windows_after_daemon_start(self):
         """main() still auto-opens the windows on launch, but through the

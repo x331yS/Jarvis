@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import voice_config, judge_pass_fail, assert_not_fallback_reply
 from jarvis.memory.graph import GraphMemoryStore
 from jarvis.reply import engine

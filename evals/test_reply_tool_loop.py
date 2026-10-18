@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import patch
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import (
     JUDGE_MODEL,
     ToolCallCapture,

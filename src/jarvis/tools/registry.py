@@ -7,6 +7,7 @@ import sys
 if sys.version_info < (3, 11):
     from exceptiongroup import BaseExceptionGroup
 
+from .builtin.system_apps import SystemAppsTool
 from .builtin.screenshot import ScreenshotTool
 from .builtin.web_search import WebSearchTool
 from .builtin.local_files import LocalFilesTool
@@ -39,6 +40,7 @@ BUILTIN_TOOLS = {
     "getTime": TimeTool(),
     "stop": StopTool(),
     "toolSearchTool": ToolSearchTool(),
+    "systemApps": SystemAppsTool(),
 }
 
 # Global MCP tools cache

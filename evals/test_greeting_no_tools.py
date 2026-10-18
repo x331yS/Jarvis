@@ -10,7 +10,7 @@ Run: ./scripts/run_evals.sh test_greeting
 import pytest
 from unittest.mock import patch
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import MockConfig, ToolCallCapture, create_mock_tool_run
 
 

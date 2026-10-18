@@ -1,7 +1,7 @@
 """Step resolution uses declared nested types, enums and required fields."""
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import voice_config
 from jarvis.reply.planner import resolve_next_tool_call
 

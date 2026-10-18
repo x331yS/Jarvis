@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import judge_pass_fail, voice_config
 from jarvis.reply import engine
 

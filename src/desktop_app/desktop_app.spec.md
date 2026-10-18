@@ -28,6 +28,11 @@ src/desktop_app/
 ├── memory_viewer.py     # Flask-based memory browser
 ├── updater.py           # Update checking logic
 ├── update_dialog.py     # Update notification dialogs
+├── jarvis_hud.py        # Full-screen JARVIS HUD window
+├── web_ui_bridge.py     # Qt WebChannel bridge for the HUD
+├── web/                 # HUD HTML
+├── css/                 # HUD styles
+├── js/                  # HUD animations and behaviour
 └── desktop_assets/      # Icons and images
 ```
 
@@ -75,12 +80,14 @@ flowchart TD
 3a. **OpenAI-compatible reachability check** (`_check_openai_compat_reachable` in `app.py`): Jarvis cannot start a third-party server the way it starts Ollama, so on a pure OpenAI-compatible setup it checks the server answers `GET /v1/models` and, if not, shows a one-off warning naming the address (never the API key) and pointing to Settings, then continues. The user only otherwise discovers a down server when their first request fails.
 4. **Single Instance Lock**: Prevents multiple copies from running simultaneously. If another instance is detected, shows a dialog offering to close the existing instance and start fresh.
 5. **Crash Detection**: Detects previous crashes and offers to submit bug reports
+6. **Windows sign-in launch**: The installer enables automatic launch by default. Users can clear the installer option to disable it. The HUD opens full-screen on Windows display 3 when available, otherwise on the third enumerated display; it falls back to the primary display when fewer than three displays are connected. macOS bundled apps use the animated face because QtWebEngine is not used there.
+7. **Windows Qt DLL bootstrap**: Before importing PyQt, the desktop entry point loads `%SystemRoot%\System32\icuuc.dll` so Qt resolves the unversioned ICU symbols it requires.
 
 ### CLI Flags
 
 | Flag | Purpose |
 |------|---------|
-| `--smoke-test` | CI smoke-test mode. Creates a minimal offscreen QApplication, runs the daemon initialisation (`daemon.main(smoke_test=True)`), prints `SMOKE_TEST_PASSED` on success (or the error + traceback on failure), and exits with code 0 or 1. Forces UTF-8 stdout/stderr on every OS (emoji-safe even when the console is an ANSI code page or absent) and Qt's offscreen platform on Linux so the gate never depends on xvfb/xcb. Bypasses the single-instance lock, crash detection, splash screen, setup wizard, Ollama checks, model verification, tray icon, and event loop. Used by the `release-smoke.yml` workflow to verify the bundled binary starts without missing DLLs or broken imports before fast-forwarding `main` to `develop`. |
+| `--smoke-test` | CI smoke-test mode. Creates a minimal offscreen QApplication and runs daemon initialisation (`daemon.main(smoke_test=True)`). Source runs print `SMOKE_TEST_PASSED` on success or the error and traceback on failure; frozen windowed builds use safe in-memory stdout/stderr and report success or failure through exit code 0 or 1. Sets Qt's offscreen platform on Linux so xvfb/xcb availability cannot break the check. Bypasses the single-instance lock, crash detection, splash screen, setup wizard, Ollama checks, model verification, tray icon, and event loop. Used by the `release-smoke.yml` workflow to verify the bundled binary starts without missing DLLs or broken imports before fast-forwarding `main` to `develop`. |
 
 The Release Smoke Test workflow defaults to validation only. It builds and
 smoke-tests the selected ref without publishing a stable release. Promotion
@@ -118,6 +125,7 @@ The central controller that manages:
 | **LogViewerWindow** | Real-time log output from the daemon, with "Report Issue" button |
 | **MemoryViewerWindow** | Web-based memory browser (Flask server) |
 | **FaceWindow** | Animated face that reacts to speaking state |
+| **JarvisHudWindow** | Full-screen local HUD with live assistant state and activity |
 | **SettingsWindow** | Auto-generated config editor with tabbed categories |
 | **SetupWizard** | First-run configuration (Ollama, models, profile) |
 | **DictationHistoryWindow** | Scrollable list of past dictations with copy/delete/clear actions |
@@ -137,7 +145,7 @@ The central controller that manages:
 - Missing optional location support is reported once at startup with a pointer to Setup, without printing the full installation guide.
 - Missing optional location support is a warning, rendered in yellow because it degrades available functionality.
 
-Window visibility is user-controlled: starting or stopping the assistant never shows or hides the log viewer or the face window. The windows open automatically once at app launch; after that the tray menu's `📝 View Logs` and `👤 Show Face` actions open them, while window close controls and the face's `Hide face` menu can hide them (the diary dialog shown while stopping is raised on top but leaves those windows' visibility untouched).
+Window visibility is user-controlled: starting or stopping the assistant never shows or hides the log viewer, face, or HUD. The HUD and log viewer open automatically once at app launch; the HUD targets the third display and falls back to the primary display when needed. After launch, the tray menu controls their visibility, while window close controls and the face's `Hide face` menu can hide them (the diary dialog shown while stopping is raised on top but leaves those windows' visibility untouched).
 
 ### Desktop face presence
 

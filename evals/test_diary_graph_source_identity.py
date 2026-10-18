@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import judge_pass_fail, voice_config
 from jarvis.memory import conversation
 from jarvis.memory.db import Database

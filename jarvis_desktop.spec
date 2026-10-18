@@ -27,7 +27,22 @@ Plugins = PyQt6/Qt6/plugins
 # Note: Let PyInstaller's built-in hooks handle sounddevice, ctranslate2, and Qt WebEngine
 # Manual collection can conflict with hooks and cause crashes
 datas = [
-    (str(src_path / 'desktop_app' / 'desktop_assets' / '*.png'), 'desktop_app/desktop_assets'),
+    (
+        str(src_path / 'desktop_app' / 'desktop_assets' / '*.png'),
+        'desktop_app/desktop_assets',
+    ),
+    (
+        str(src_path / 'desktop_app' / 'web'),
+        'desktop_app/web',
+    ),
+    (
+        str(src_path / 'desktop_app' / 'css'),
+        'desktop_app/css',
+    ),
+    (
+        str(src_path / 'desktop_app' / 'js'),
+        'desktop_app/js',
+    ),
 ]
 
 # Collect Piper TTS data files (espeak-ng-data is required for phonemization)
@@ -108,6 +123,8 @@ hiddenimports = [
     'desktop_app.update_dialog',
     'desktop_app.themes',
     'desktop_app.face_widget',
+    'desktop_app.jarvis_hud',
+    'desktop_app.web_ui_bridge',
     'desktop_app.diary_dialog',
     'desktop_app.memory_viewer',
     # Listening modules
@@ -122,7 +139,6 @@ hiddenimports = [
     'jarvis.memory',
     'jarvis.memory.conversation',
     'jarvis.memory.db',
-    'jarvis.memory.embeddings',
     # Output modules
     'jarvis.output',
     'jarvis.output.tts',
@@ -131,7 +147,6 @@ hiddenimports = [
     'piper',
     'piper.voice',
     'piper.config',
-    'piper.download',
     'piper.download_voices',
     'piper.phonemize_espeak',
     'piper.phoneme_ids',
@@ -139,9 +154,6 @@ hiddenimports = [
     'onnxruntime',
     'onnxruntime.capi',
     'onnxruntime.capi._pybind_state',
-    # Profile modules
-    'jarvis.profile',
-    'jarvis.profile.profiles',
     # Reply modules
     'jarvis.reply',
     'jarvis.reply.engine',
@@ -154,11 +166,11 @@ hiddenimports = [
     'jarvis.tools.builtin',
     'jarvis.tools.builtin.fetch_web_page',
     'jarvis.tools.builtin.local_files',
+    'jarvis.tools.builtin.system_apps',
     'jarvis.tools.builtin.nutrition',
     'jarvis.tools.builtin.nutrition.delete_meal',
     'jarvis.tools.builtin.nutrition.fetch_meals',
     'jarvis.tools.builtin.nutrition.log_meal',
-    'jarvis.tools.builtin.recall_conversation',
     'jarvis.tools.builtin.refresh_mcp_tools',
     'jarvis.tools.builtin.screenshot',
     'jarvis.tools.builtin.web_search',
@@ -578,4 +590,3 @@ else:
         upx_exclude=[],
         name='Jarvis',
     )
-

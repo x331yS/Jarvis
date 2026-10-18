@@ -41,6 +41,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "autostart"; Description: "Start Jarvis automatically when I sign in to Windows"; GroupDescription: "Startup:"; Flags: checkedonce
 Name: "cudalibs"; Description: "Download NVIDIA CUDA libraries for GPU-accelerated speech recognition (~1.1 GB download)"; GroupDescription: "GPU Acceleration:"; Check: HasNvidiaGPU; Flags: unchecked
 
 [Files]
@@ -53,6 +54,9 @@ Source: "install_cuda.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Jarvis"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
 ; Install VC++ Redistributable silently if missing
@@ -119,6 +123,9 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
+    if not WizardIsTaskSelected('autostart') then
+      RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Jarvis');
+
     if VCRedistNeeded then
     begin
       // Download vc_redist.x64.exe from Microsoft

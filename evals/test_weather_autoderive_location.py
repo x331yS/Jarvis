@@ -35,7 +35,7 @@ from unittest.mock import patch
 
 import pytest
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import (
     ToolCallCapture,
     assert_not_fallback_reply,

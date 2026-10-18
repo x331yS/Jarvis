@@ -1,6 +1,6 @@
 """Local inference retains complete rewrites and rejects explicitly capped answers."""
 
-from conftest import requires_judge_llm
+from evals.conftest import requires_judge_llm
 from helpers import voice_config
 from jarvis.llm import get_llm_backend
 
