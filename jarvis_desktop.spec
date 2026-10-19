@@ -80,8 +80,19 @@ try:
 except Exception as e:
     print(f"Warning: Could not collect Qt plugins: {e}")
 
-# Note: Qt WebEngine resources are handled by PyInstaller's hook-PyQt6.QtWebEngineWidgets.py
-# Manual collection can conflict with the hook and cause crashes
+qt_binaries = []
+if sys.platform == 'win32':
+    import PyQt6
+    qt_root = Path(PyQt6.__file__).parent / 'Qt6'
+    webengine_process = qt_root / 'bin' / 'QtWebEngineProcess.exe'
+    if not webengine_process.is_file():
+        raise FileNotFoundError(f"Required WebEngine helper is missing: {webengine_process}")
+    qt_binaries.append((str(webengine_process), 'PyQt6/Qt6/bin'))
+    datas += collect_data_files(
+        'PyQt6',
+        includes=['Qt6/resources/*', 'Qt6/translations/qtwebengine_locales/*'],
+        excludes=['**/*.debug.*'],
+    )
 
 # Hidden imports that PyInstaller might miss
 hiddenimports = [
@@ -235,7 +246,7 @@ if sys.platform == 'win32':
 a = Analysis(
     ['src/desktop_app/app.py'],
     pathex=[str(src_path)],
-    binaries=[],
+    binaries=qt_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
@@ -310,6 +321,7 @@ for binary in a.binaries:
         should_exclude = True
 
     # Pattern-based exclusions (heavy libraries)
+    'icuuc.dll',     # Qt and its renderer must use Windows ICU, not conda ICU
     if not should_exclude:
         for pattern in excluded_binary_patterns:
             if pattern in name or pattern in binary_path:
