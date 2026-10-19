@@ -70,6 +70,7 @@ Budget memory for Whisper and, when different from chat, the fast model used for
 - **Remember beyond one session.** Search your local diary and knowledge graph. Browse what Jarvis has stored in the Memory Viewer.
 - **Get things done.** Built-in tools cover web search, weather, time, screenshot OCR, file access, nutrition tracking and optional location awareness.
 - **Control Windows audio locally.** Ask Jarvis to switch the default playback device or raise/lower the volume. Switching devices keeps their saved volume levels.
+- **Quiet Windows startup.** Ollama's background runners and hardware checks do not open command windows.
 - **Connect your own tools.** MCP servers add browser automation, smart-home controls and other integrations. Tool routing selects a relevant subset for each request.
 - **Dictate into other apps.** Hold a hotkey, speak, then release to paste locally transcribed text. See the [platform limitations](#known-limitations) first.
 - **Type when you need to.** The companion chat shares your voice conversation and memory. Text replies are silent, and you can rewind a sent message to regenerate from that point.

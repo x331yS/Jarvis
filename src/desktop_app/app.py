@@ -100,6 +100,8 @@ class RuntimeStatusSnapshot:
     llm_provider: str
     chat_model: str
     embedding_provider: str
+from desktop_app.jarvis_hud import JarvisHudWindow
+from desktop_app.background_process import hidden_console_options
     embedding_model: str
     mcp_count: int
 
@@ -3506,7 +3508,7 @@ def main() -> int:
                             [ollama_path, "serve"],
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
-                            creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
+                            **hidden_console_options(),
                         )
                         ollama_launch_method = "serve"
                     else:

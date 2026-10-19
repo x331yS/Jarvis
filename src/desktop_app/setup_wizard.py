@@ -20,6 +20,7 @@ from enum import Enum, auto
 
 import requests
 
+from desktop_app.background_process import hidden_console_options
 from jarvis.config import SUPPORTED_CHAT_MODELS, DEFAULT_CHAT_MODEL
 from jarvis.utils.vram import (
     detect_total_vram_mb,
@@ -1854,7 +1855,7 @@ class OllamaServerPage(ScrollableWizardPage):
                     [ollama_path, "serve"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    **hidden_console_options(),
                 )
             else:
                 # On Linux and other platforms, run serve command

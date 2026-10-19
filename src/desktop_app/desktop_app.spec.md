@@ -78,6 +78,9 @@ flowchart TD
 
 | Flag | Purpose |
 |------|---------|
+6. **Windows sign-in launch**: The installer enables automatic launch by default. Users can clear the installer option to disable it. The HUD opens full-screen on Windows display 3 when available, otherwise on the third enumerated display; it falls back to the primary display when fewer than three displays are connected. macOS bundled apps use the animated face because QtWebEngine is not used there.
+7. **Windows Qt DLL bootstrap**: Before importing PyQt, the desktop entry point loads `%SystemRoot%\System32\icuuc.dll` so Qt resolves the unversioned ICU symbols it requires.
+8. **Quiet Windows startup**: Ollama runs with a dedicated hidden console (`CREATE_NEW_CONSOLE` plus `STARTF_USESHOWWINDOW` / `SW_HIDE`). Its model runners inherit that console instead of opening individual windows. The NVIDIA memory probe uses `CREATE_NO_WINDOW`. Process failures retain the standard startup error handling and logs.
 | `--smoke-test` | CI smoke-test mode. Creates a minimal offscreen QApplication, runs the daemon initialisation (`daemon.main(smoke_test=True)`), prints `SMOKE_TEST_PASSED` on success (or the error + traceback on failure), and exits with code 0 or 1. Forces UTF-8 stdout/stderr on every OS (emoji-safe even when the console is an ANSI code page or absent) and Qt's offscreen platform on Linux so the gate never depends on xvfb/xcb. Bypasses the single-instance lock, crash detection, splash screen, setup wizard, Ollama checks, model verification, tray icon, and event loop. Used by the `release-smoke.yml` workflow to verify the bundled binary starts without missing DLLs or broken imports before fast-forwarding `main` to `develop`. |
 
 ## Main Components

@@ -19,6 +19,10 @@ An OpenAI-compatible user has opted out of the local Ollama stack, so `should_sh
 3. **Platform-aware**: Apple Silicon gets MLX Whisper options. Windows gets hidden-console Ollama serve. macOS opens the Ollama app.
 4. **Safe re-entry**: Running the wizard again never destroys existing config — it only fills in missing values.
 
+Windows Ollama startup uses the shared hidden-console process options from
+`background_process.py`. Model runners inherit the hidden console. The wizard
+preserves its server verification and visible error reporting.
+
 ## Layout and overflow
 
 The wizard uses a shared dark visual theme in `themes.py`, with neutral cards,
