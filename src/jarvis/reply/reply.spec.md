@@ -14,6 +14,8 @@ Design principles enforced by the engine:
 - Unified System Prompt: A single prompt with adaptive guidance handles all topics; no per-profile routing.
 - Tool Response Flow: Tools return raw data; formatting/personality is handled by the LLM through the engine's loop. The system prompt explicitly instructs the model to use tool results to fulfill the user's original request, not to describe the structure or format of the tool response.
 - Language-Agnostic Design: Prompts and ASR guidance avoid language-specific phrasing.
+- Reply language: `reply_language` controls all prose, including greetings and asides, independently of TTS engine and persona. The default is English; an empty setting follows the user's language. Explicit configuration takes precedence over remembered language preferences. The British persona describes manner, not language. A suitable local voice must be configured for speech.
+- Local audio requests authorise the requested output or volume change. The model must execute the available tool before claiming completion, must not request redundant permission, and can list devices when a name is ambiguous.
 - Data Privacy: Inputs are redacted and logging is concise and purposeful via `debug_log`.
 
 ### Entry and Inputs
@@ -378,5 +380,4 @@ Behaviour:
 ### Logging and Privacy
 - Use `debug_log` for key steps: `memory`, `planning`, and `voice` categories.
 - Avoid excessive logging; logs must remain readable and privacy-preserving.
-
 

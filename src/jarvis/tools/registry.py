@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import os
 
+from .builtin.system_audio import SystemAudioTool
 from .builtin.screenshot import ScreenshotTool
 from .builtin.web_search import WebSearchTool
 from .builtin.local_files import LocalFilesTool
@@ -41,6 +42,7 @@ BUILTIN_TOOLS = {
     "getTime": TimeTool(),
     "stop": StopTool(),
     "toolSearchTool": ToolSearchTool(),
+    "systemAudio": SystemAudioTool(),
 }
 
 # Global MCP tools cache

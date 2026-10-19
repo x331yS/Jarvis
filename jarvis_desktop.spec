@@ -228,6 +228,10 @@ hiddenimports = [
     'blinker',
 ]
 
+if sys.platform == 'win32':
+    hiddenimports += collect_submodules('pycaw')
+    hiddenimports += collect_submodules('comtypes')
+
 a = Analysis(
     ['src/desktop_app/app.py'],
     pathex=[str(src_path)],

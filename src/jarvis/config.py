@@ -115,6 +115,7 @@ class Settings:
 
     # Profiles & Behavior
     active_profiles: list[str]
+    reply_language: str
     use_stdin: bool
     voice_debug: bool
 
@@ -502,6 +503,7 @@ def get_default_config() -> Dict[str, Any]:
 
         # Profiles & Behavior
         "active_profiles": ["developer", "business", "life"],
+        "reply_language": "English",
         "use_stdin": False,
 
         # Screen Capture
@@ -909,6 +911,7 @@ def load_settings() -> Settings:
 
         # Profiles & Behavior
         active_profiles=active_profiles,
+        reply_language=str(merged.get("reply_language") or "").strip(),
         use_stdin=use_stdin,
         voice_debug=voice_debug,
 

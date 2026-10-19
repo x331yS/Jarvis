@@ -180,6 +180,10 @@ def _build_field_metadata() -> List[FieldMeta]:
       "llm_provider", "str", nullable=True)
 
     # --- Text-to-Speech ---
+    f("reply_language", "Reply Language",
+      "Language for every reply, e.g. French. Leave empty to match the user. "
+      "Choose a local TTS voice that supports this language.",
+      "tts", "str", nullable=True)
     f("tts_enabled", "Enable TTS", "Enable text-to-speech output",
       "tts", "bool")
     f("tts_engine", "TTS Engine", "Speech synthesis engine",

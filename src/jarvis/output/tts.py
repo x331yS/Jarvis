@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 from ..debug import debug_log
 from ..utils.audio_lock import portaudio_lock
+from ..utils.windows_audio import playback_device
 
 
 # ============================================================================
@@ -919,6 +920,7 @@ class PiperTTS:
             with self._audio_lock:
                 with portaudio_lock:
                     self._audio_stream = sd.OutputStream(
+                        device=playback_device(),
                         samplerate=self._sample_rate,
                         channels=1,
                         dtype='int16',

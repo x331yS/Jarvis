@@ -8,6 +8,29 @@ Detailed settings, dictation, integrations and troubleshooting. Start with the d
 
 Most users won't need to change anything. Open **⚙️ Settings** from the tray menu to configure Jarvis through a graphical interface: no JSON editing required. Settings are saved to `~/.config/jarvis/config.json`.
 
+### Reply language and Windows audio
+
+Under **Settings → Text-to-Speech**, set **Reply Language** to a language name such as `French`.
+This applies to spoken and typed replies, including greetings and asides. Empty means match the user's language.
+Choose a local voice that supports the same language. Piper supports French with `fr_FR-tom-medium`;
+Chatterbox's English model is not suitable for French.
+
+```json
+{
+  "reply_language": "French",
+  "tts_engine": "piper",
+  "tts_piper_model_path": "~/.local/share/jarvis/models/piper/fr_FR-tom-medium.onnx"
+}
+```
+
+On Windows, `systemAudio` lists active playback devices, changes the default output
+for console, multimedia and communications, and controls volume locally without
+administrator rights. For example: “Mets la sortie audio sur le Soulion R100”,
+“Passe sur la Focusrite”, “Monte le volume de 10 points”, or “Mets le volume à 40 %”.
+Switching devices preserves their volume settings. Applications with a pinned output
+may need their own output setting changed. Piper resolves the Windows default on
+each utterance without restarting microphone capture.
+
 <details>
 <summary><strong>LLM Provider (Ollama or OpenAI-compatible)</strong></summary>
 

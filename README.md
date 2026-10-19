@@ -69,6 +69,7 @@ Budget memory for Whisper and, when different from chat, the fast model used for
 - **A third person in the room.** Bring Jarvis into an ongoing conversation with friends, talk through a problem aloud, or ask it to weigh in on a decision. “Jarvis, what do you think?” draws on the recent discussion, not just that one sentence.
 - **Remember beyond one session.** Search your local diary and knowledge graph. Browse what Jarvis has stored in the Memory Viewer.
 - **Get things done.** Built-in tools cover web search, weather, time, screenshot OCR, file access, nutrition tracking and optional location awareness.
+- **Control Windows audio locally.** Ask Jarvis to switch the default playback device or raise/lower the volume. Switching devices keeps their saved volume levels.
 - **Connect your own tools.** MCP servers add browser automation, smart-home controls and other integrations. Tool routing selects a relevant subset for each request.
 - **Dictate into other apps.** Hold a hotkey, speak, then release to paste locally transcribed text. See the [platform limitations](#known-limitations) first.
 - **Type when you need to.** The companion chat shares your voice conversation and memory. Text replies are silent, and you can rewind a sent message to regenerate from that point.
@@ -132,6 +133,8 @@ Jarvis is actively developed, primarily on macOS. Windows and Linux behaviour ma
 ## Configuration
 
 Most people can use **Settings** from the tray. Advanced setups can edit `~/.config/jarvis/config.json`.
+
+Set **Reply Language** to `French` for French-only replies, and use a matching local Piper voice such as `fr_FR-tom-medium`. Leave the language empty to follow the language you speak.
 
 [**Open the configuration guide →**](docs/CONFIGURATION.md)
 

@@ -1463,22 +1463,15 @@ def run_reply_engine(db: "Database", cfg, tts: Optional[Any],
     action_plan = strip_memory_directives(action_plan)
 
     _assistant_name = str(getattr(cfg, "wake_word", "jarvis") or "jarvis").strip().capitalize()
-    _persona_prompt = build_system_prompt(_assistant_name)
+    _reply_language = getattr(cfg, "reply_language", "English")
+    _persona_prompt = build_system_prompt(_assistant_name, reply_language=_reply_language)
+    debug_log(f"Reply language: {_reply_language or 'match user'}", "reply")
 
     def _build_initial_system_message() -> str:
         guidance = [_persona_prompt.strip()]
 
         # Add model-size-appropriate prompt components
         guidance.extend(prompts.to_list())
-
-        # Both current TTS engines (Piper, Chatterbox) only support English.
-        # Responding in another language would produce garbled audio.
-        # Remove this constraint when a multilingual TTS engine is added.
-        tts_engine = getattr(cfg, 'tts_engine', 'piper')
-        if tts_engine in ('piper', 'chatterbox'):
-            guidance.append(
-                "Always respond in English regardless of the language the user speaks in."
-            )
 
         if warm_profile_block:
             # Pre-query, query-agnostic user context. Lives OUTSIDE the

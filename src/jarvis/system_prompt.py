@@ -79,11 +79,30 @@ _SYSTEM_PROMPT_TEMPLATE: str = (
 )
 
 
-def build_system_prompt(assistant_name: str = "Jarvis") -> str:
+def build_system_prompt(assistant_name: str = "Jarvis", reply_language: str = "") -> str:
     """Render the persona prompt with the configured assistant name.
 
     The name comes from the user's wake word (capitalised); defaults to
     "Jarvis" when no config is available (tests, eval harnesses).
     """
     name = (assistant_name or "Jarvis").strip() or "Jarvis"
-    return _SYSTEM_PROMPT_TEMPLATE.format(name=name)
+    prompt = _SYSTEM_PROMPT_TEMPLATE.format(name=name)
+    if reply_language.strip():
+        prompt += (
+            f"\nReply exclusively in {reply_language.strip()}. "
+            "British describes your manner, not the language you speak. "
+            "Keep the entire reply in the configured language, including greetings "
+            "and asides. Do not comment on the user's choice of language. "
+            "This language setting takes precedence over language preferences in memory."
+        )
+    else:
+        prompt += "\nReply in the user's language throughout, including greetings and asides."
+    prompt += (
+        "\nFor a requested action that an available tool supports, call the tool "
+        "before saying the action is done. A direct request to change a local audio "
+        "output or volume authorises that action: use the audio tool immediately, "
+        "without asking for permission again. A unique part of a device name is sufficient; "
+        "if uncertain, list the available devices with the tool. Never describe an "
+        "unexecuted action as completed."
+    )
+    return prompt
