@@ -53,22 +53,23 @@
     const REACTOR_RADIUS = 3.4;
 
     const STATES = {
-        idle:      { color: 0x62e6ff, spin: 1.0, pulse: 1.1, wave: 0.18, glow: 0.85 },
-        listening: { color: 0x9af6ff, spin: 1.7, pulse: 2.8, wave: 0.65, glow: 1.1 },
-        thinking:  { color: 0x4f9dff, spin: 3.4, pulse: 2.0, wave: 0.3,  glow: 1.0 },
-        executing: { color: 0x5effd2, spin: 2.6, pulse: 2.4, wave: 0.4,  glow: 1.0 },
-        speaking:  { color: 0xc4f9ff, spin: 1.9, pulse: 3.6, wave: 1.0,  glow: 1.25 },
-        error:     { color: 0xff5a4f, spin: 0.6, pulse: 4.5, wave: 0.2,  glow: 1.0 }
+        idle:      { colours: [0x62e6ff, 0x4285ff, 0x9964ff, 0xd96cff, 0x9964ff, 0x4285ff], period: 72, spin: 1.0, pulse: 1.1, wave: 0.18, glow: 0.85 },
+        listening: { colours: [0x9af6ff, 0x96a0ff], period: 16, spin: 1.7, pulse: 2.8, wave: 0.65, glow: 1.1 },
+        thinking:  { colours: [0xffd84f, 0xff972f], period: 12, spin: 3.4, pulse: 2.0, wave: 0.3, glow: 1.0 },
+        executing: { colours: [0xff972f, 0xffc44f], period: 8, spin: 2.6, pulse: 2.4, wave: 0.4, glow: 1.0 },
+        speaking:  { colours: [0x54ff9c, 0x41e69f, 0x9dff72], period: 12, spin: 1.9, pulse: 3.6, wave: 1.0, glow: 1.25 },
+        error:     { colours: [0xff5a4f], period: 1, spin: 0.6, pulse: 4.5, wave: 0.2, glow: 1.0 }
     };
 
     const live = {
-        color: new THREE.Color(STATES.idle.color),
+        color: new THREE.Color(STATES.idle.colours[0]),
         spin: STATES.idle.spin,
         pulse: STATES.idle.pulse,
         wave: STATES.idle.wave,
         glow: STATES.idle.glow
     };
     const targetColor = new THREE.Color();
+    const nextColor = new THREE.Color();
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x02060b, 30, 90);
@@ -386,6 +387,8 @@
 
     const clock = new THREE.Clock();
     let elapsed = 0;
+    let previousTarget = null;
+    let stateStarted = 0;
 
     function animate() {
         requestAnimationFrame(animate);
@@ -396,12 +399,23 @@
         const delta = Math.min(clock.getDelta(), 0.1);
         const target = currentState();
         const ease = 1 - Math.pow(0.02, delta);
+        if (target !== previousTarget) {
+            previousTarget = target;
+            stateStarted = clock.elapsedTime;
+        }
+        const phase = ((clock.elapsedTime - stateStarted) / target.period % 1) * target.colours.length;
+        const index = Math.floor(phase);
+        const blend = (1 - Math.cos((phase - index) * Math.PI)) / 2;
+        targetColor.setHex(target.colours[index]).lerp(
+            nextColor.setHex(target.colours[(index + 1) % target.colours.length]),
+            blend
+        );
 
         live.spin += (target.spin - live.spin) * ease;
         live.pulse += (target.pulse - live.pulse) * ease;
         live.wave += (target.wave - live.wave) * ease;
         live.glow += (target.glow - live.glow) * ease;
-        live.color.lerp(targetColor.setHex(target.color), ease);
+        live.color.lerp(targetColor, ease);
 
         elapsed += delta;
         const spin = delta * live.spin;

@@ -202,6 +202,7 @@ body.webgl-ready .reactor > * {
 }
 
 .reactor {
+    --cyan: var(--reactor-colour, #62e6ff);
     position: relative;
     width: 360px;
     height: 360px;
@@ -277,7 +278,7 @@ body.webgl-ready .reactor > * {
         radial-gradient(
             circle,
             #dffcff 0%,
-            #62e6ff 22%,
+            var(--cyan) 22%,
             #147f9e 48%,
             transparent 70%
         );
@@ -317,8 +318,9 @@ body.webgl-ready .reactor > * {
     display: block;
     width: 3px;
     height: 8px;
-    background: var(--cyan);
-    box-shadow: 0 0 8px var(--cyan);
+    background: var(--reactor-colour, var(--cyan));
+    box-shadow: 0 0 8px var(--reactor-colour, var(--cyan));
+    transition: background-color 1s ease, box-shadow 1s ease;
     animation: wave 1s ease-in-out infinite;
 }
 
@@ -346,6 +348,27 @@ body.webgl-ready .reactor > * {
 
 body.state-listening .core {
     animation-duration: .7s;
+}
+
+body.state-thinking {
+    --reactor-colour: #ffd84f;
+}
+
+body.state-executing {
+    --reactor-colour: #ff972f;
+}
+
+body.state-speaking {
+    --reactor-colour: #54ff9c;
+}
+
+body.state-error {
+    --reactor-colour: #ff5a4f;
+}
+
+#stateLabel {
+    color: var(--reactor-colour, var(--cyan));
+    transition: color 1s ease;
 }
 
 body.state-thinking .ring-inner {

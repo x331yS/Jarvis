@@ -1,6 +1,8 @@
 """HUD updates must be idempotent and use one bridge delivery path."""
 
 import json
+import colorsys
+from io import BytesIO
 from pathlib import Path
 import os
 import subprocess
@@ -41,6 +43,9 @@ def hud():
         page = browser.new_page(viewport={"width": 1280, "height": 900})
         page.set_default_timeout(5000)
         page.add_init_script("""
+            const realNow = performance.now.bind(performance);
+            window.hudTimeOffset = 0;
+            performance.now = () => realNow() + window.hudTimeOffset;
             window.qt = {webChannelTransport: {}};
             window.QWebChannel = function(transport, ready) {
                 ready({objects: {jarvis: {
@@ -132,6 +137,51 @@ def test_lost_webgl_context_keeps_the_css_reactor_visible_until_restored(hud):
     hud.wait_for_function("document.body.classList.contains('webgl-ready')")
 
 
+def _reactor_hue(hud):
+    from PIL import Image
+
+    hud.wait_for_timeout(1400)
+    image = Image.open(BytesIO(hud.locator(".reactor").screenshot())).convert("RGB")
+    coloured = [
+        pixel for pixel in image.getdata()
+        if max(pixel) > 80 and max(pixel) - min(pixel) > 40
+    ]
+    assert coloured, "The reactor must render visible coloured pixels"
+    channels = [sum(pixel[index] for pixel in coloured) / len(coloured) / 255 for index in range(3)]
+    return colorsys.rgb_to_hsv(*channels)[0]
+
+
+@pytest.mark.parametrize("state,hue_range", [
+    ("thinking", (0.04, 0.20)),
+    ("executing", (0.04, 0.20)),
+    ("speaking", (0.27, 0.48)),
+    ("error", (0.0, 0.04)),
+])
+def test_reactor_colour_communicates_assistant_activity(hud, state, hue_range):
+    hud.evaluate("(state) => window.jarvisHUD.setState(state)", state)
+    hue = _reactor_hue(hud)
+    assert hue_range[0] <= hue <= hue_range[1], (state, hue)
+
+
+def test_idle_reactor_gradually_varies_between_cool_colours(hud):
+    hud.evaluate("window.jarvisHUD.setState('idle')")
+    initial = _reactor_hue(hud)
+    hud.evaluate("window.hudTimeOffset += 24000")
+    later = _reactor_hue(hud)
+    assert 0.45 <= initial <= 0.80
+    assert 0.65 <= later <= 0.85
+    assert abs(later - initial) > 0.10
+
+
+def test_processing_colour_progresses_from_yellow_towards_orange(hud):
+    hud.evaluate("window.jarvisHUD.setState('thinking')")
+    yellow = _reactor_hue(hud)
+    hud.evaluate("window.hudTimeOffset += 4000")
+    orange = _reactor_hue(hud)
+    assert 0.04 <= orange < yellow <= 0.20
+    assert yellow - orange > 0.01
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows rendering contract")
 def test_native_window_and_web_surface_share_an_opaque_background():
     script = """
@@ -168,6 +218,8 @@ window.close()
     ("Returning to wake word mode", "idle"),
     ("Generating response...", "thinking"),
     ("TTS playing response", "speaking"),
+    ("Working on it: Bonjour", "thinking"),
+    ("TTS error: playback failed", "error"),
 ])
 def test_log_events_have_consistent_states(message, expected):
     from desktop_app.jarvis_hud import JarvisHudWindow

@@ -111,6 +111,7 @@ The central controller that manages:
 
 - The native window, web view and WebEngine page share an opaque `#02060b` background, matching the local HTML theme.
 - The local Three.js scene draws the animated reactor, globe, orbits and particles on an opaque WebGL canvas. Its library and licence ship with the application; rendering requires no network access. The CSS reactor remains visible when WebGL is unavailable or its context is lost, and the scene resumes after context restoration.
+- Reactor colours interpolate smoothly: standby cycles through cyan, blue, violet and magenta; listening stays cool; processing cycles through yellow and orange; speech is green; errors stay red. Rings, glow and radial bars share the scene colour while the waveform and state label identify processing, speech and error states. Processing starts with the work-start log event, before response generation; errors take precedence over other log keywords. Colour animation runs within the existing render loop without rebuilding the scene or updating the DOM each frame.
 - State and context updates travel through QWebChannel only. The page loads once; ordinary activity does not reload it or reconstruct its visual tree.
 - The bridge publishes only changed state/context values. JavaScript also ignores repeated values, preserving existing activity rows and animation progress. Notifications remain events and can repeat.
 - On WebChannel connection, a snapshot supplies the current state and context, including changes made before the page became ready.

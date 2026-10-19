@@ -116,6 +116,10 @@ class JarvisHudWindow(QMainWindow):
 
         text = re.sub(r"\x1b\[[0-9;]*m", "", message).lower()
 
+        if "error" in text or "failed" in text:
+            self.bridge.set_state("error")
+            return
+
         if any(
             token in text
             for token in (
@@ -144,6 +148,7 @@ class JarvisHudWindow(QMainWindow):
             token in text
             for token in (
                 "thinking",
+                "working on it",
                 "generating",
                 "processing",
                 "llm",
@@ -174,6 +179,3 @@ class JarvisHudWindow(QMainWindow):
         ):
             self.bridge.set_state("speaking")
             return
-
-        if "error" in text or "failed" in text:
-            self.bridge.set_state("error")
