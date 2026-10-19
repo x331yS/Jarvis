@@ -109,6 +109,9 @@ The activity timeline keeps ordinary events readable. Downloads have a separate 
 
 Choose models, tune speech recognition, configure tools and enable Low Power Mode from **Settings** in the tray menu.
 
+With the thinking sound enabled, Jarvis plays one short acknowledgement when it
+starts processing your request, then waits silently until its spoken response.
+
 <p align="center">
   <img src="docs/img/settings-window.png" alt="Jarvis Settings with a category sidebar and speech recognition controls" width="900">
 </p>

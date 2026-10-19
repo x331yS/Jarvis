@@ -1,7 +1,7 @@
 """Behavioural tests for the thinking-tune player.
 
 Covers:
-- Sample / WAV generation: right format/size, seam is effectively seamless.
+- Sample / WAV generation: one short pulse with quiet endpoints.
 - TunePlayer lifecycle: idempotent start/stop, is_playing state, prompt
   stop even when a "stream" is running.
 - Sounddevice dispatch: stop_tune closes the stream cleanly from the
@@ -19,6 +19,8 @@ import sys
 import time
 import types
 import wave
+import threading
+import numpy as np
 from unittest.mock import MagicMock
 
 import pytest
@@ -40,8 +42,7 @@ def test_thinking_pad_samples_have_expected_shape():
     assert rate == 44100
     assert samples.dtype.name == "int16"
     assert samples.ndim == 1
-    # Long enough to contain several pulse-silence cycles.
-    assert samples.size / rate >= 5.0
+    assert 0 < samples.size / rate <= 1.5
 
 
 def test_thinking_pad_wav_is_well_formed():
@@ -62,7 +63,7 @@ def test_thinking_pad_wav_cached():
     assert _get_thinking_pad_wav() is _get_thinking_pad_wav()
 
 
-def test_thinking_pad_seam_is_effectively_seamless():
+def test_thinking_pulse_has_quiet_endpoints():
     samples, _ = _generate_thinking_pad_samples()
     first = int(samples[0])
     last = int(samples[-1])
@@ -70,20 +71,15 @@ def test_thinking_pad_seam_is_effectively_seamless():
     assert abs(first - last) < 0.05 * 32767
 
 
-def test_thinking_pad_breathes():
-    """The pad is intentionally not continuous — it has a short audible
-    breath followed by a silent pause each loop so long thinking runs
-    aren't fatiguing. Verify both extremes exist."""
+def test_thinking_pulse_decays_without_another_attack():
     samples, rate = _generate_thinking_pad_samples()
     win = rate // 10  # 100ms windows
     peaks = [
         int(abs(samples[i : i + win]).max())
         for i in range(0, samples.size - win, win)
     ]
-    # At least one window is clearly audible (the hold section).
     assert max(peaks) > 0.10 * 32767
-    # At least one window is effectively silent (the rest pause).
-    assert min(peaks) < 0.005 * 32767
+    assert peaks[-1] < peaks[0] * 0.05
 
 
 # --- TunePlayer lifecycle --------------------------------------------------
@@ -118,6 +114,7 @@ def _install_fake_sounddevice(monkeypatch, stream_factory=None):
 
     fake_sd = types.ModuleType("sounddevice")
     fake_sd.OutputStream = _OutputStream
+    fake_sd.CallbackStop = type("CallbackStop", (Exception,), {})
     monkeypatch.setitem(sys.modules, "sounddevice", fake_sd)
     return created
 
@@ -130,7 +127,6 @@ def test_disabled_player_never_starts():
         assert tp._thread is None
     finally:
         tp.stop_tune()
-
 
 def test_stop_is_idempotent():
     tp = TunePlayer(enabled=False)
@@ -202,17 +198,21 @@ def test_fallback_when_sounddevice_unavailable(monkeypatch):
     assert not tp.is_playing()
 
 
-def test_stream_callback_wraps_seamlessly(monkeypatch):
-    """The internal callback must wrap from end-of-buffer back to start
-    without dropping a frame — that's the whole 'seamless loop' promise."""
+def test_pulse_finishes_releases_output_and_stays_silent_until_next_request(monkeypatch):
     captured = {}
+    finished = threading.Event()
 
     class _SpyStream(_FakeStream):
         def __init__(self, *a, **kw):
             super().__init__(*a, **kw)
             captured["callback"] = kw.get("callback")
+            self.finished_callback = kw.get("finished_callback")
 
-    _install_fake_sounddevice(monkeypatch, stream_factory=_SpyStream)
+        def close(self):
+            super().close()
+            finished.set()
+
+    created = _install_fake_sounddevice(monkeypatch, stream_factory=_SpyStream)
     tp = TunePlayer(enabled=True)
     tp.start_tune()
     try:
@@ -224,27 +224,34 @@ def test_stream_callback_wraps_seamlessly(monkeypatch):
         assert cb is not None
 
         samples, _ = _get_thinking_pad_samples()
-        total = samples.size
-
-        # Position the read head just before the end of the buffer so
-        # the next callback crosses the seam.
-        import numpy as np
         frames = 1024
-        # Simulate two back-to-back callbacks that span the wrap.
-        # First drain most of the buffer with a big fake call — we can
-        # do it via multiple calls to the real callback.
-        out = np.zeros((frames, 1), dtype=np.int16)
+        output = []
+        for _ in range(samples.size // frames + 2):
+            out = np.full((frames, 1), -1, dtype=np.int16)
+            try:
+                cb(out, frames, None, None)
+            except sys.modules["sounddevice"].CallbackStop:
+                output.extend(out[:, 0])
+                break
+            output.extend(out[:, 0])
+        else:
+            pytest.fail("The pulse must finish rather than loop")
+        np.testing.assert_array_equal(output[:samples.size], samples)
+        assert not any(output[samples.size:])
+        created_stream = created["stream"]
+        created_stream.finished_callback()
+        assert finished.wait(1), "Output must be released without waiting for the response"
+        assert not tp.is_playing()
+        tp.start_tune()
+        assert created["stream"] is created_stream, "Repeated start in one request must stay silent"
+    finally:
+        tp.stop_tune()
 
-        # Call the callback repeatedly until position wraps.
-        # The callback uses a closure; after enough calls we should cross.
-        seen_wrap = False
-        for _ in range(total // frames + 2):
-            cb(out, frames, None, None)
-            # When the internal position wraps, outdata will be a mix
-            # of end-of-buffer and start-of-buffer samples. Verify no
-            # exception raised and output is int16.
-            assert out.dtype.name == "int16"
-            seen_wrap = True
-        assert seen_wrap
+    tp.start_tune()
+    try:
+        deadline = time.monotonic() + 1
+        while created["stream"] is created_stream and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert created["stream"] is not created_stream, "The next request can play its own pulse"
     finally:
         tp.stop_tune()

@@ -97,6 +97,12 @@ on it, and a cross-thread close is a native use-after-free.
 
 ### 1. Transcript-First
 
+When processing a directed request begins, the optional thinking sound plays
+one short acknowledgement pulse. Playback ends and releases the audio output
+automatically; the assistant waits silently until its spoken response. Repeated
+starts within the same processing request do not replay the pulse. Stopping
+processing can interrupt it, and the next request can play its own pulse.
+
 Instead of extracting post-wake-word audio, we:
 - Continuously transcribe all speech (VAD-gated)
 - Store transcripts with timestamps in a rolling buffer

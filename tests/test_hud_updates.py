@@ -152,6 +152,7 @@ def _reactor_hue(hud):
 
 
 @pytest.mark.parametrize("state,hue_range", [
+    ("listening", (0.45, 0.70)),
     ("thinking", (0.04, 0.20)),
     ("executing", (0.04, 0.20)),
     ("speaking", (0.27, 0.48)),
