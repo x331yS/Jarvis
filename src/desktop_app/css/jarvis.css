@@ -1,12 +1,15 @@
 :root {
-    --cyan: #62e6ff;
-    --cyan-soft: rgba(98, 230, 255, 0.35);
-    --blue: #3c7dff;
+    --hud-rgb: 98 230 255;
     --bg: #02060b;
-    --panel: rgba(3, 13, 23, 0.72);
-    --border: rgba(98, 230, 255, 0.25);
-    --text: #d9f8ff;
-    --muted: rgba(217, 248, 255, 0.52);
+}
+
+body {
+    --cyan: rgb(var(--hud-rgb));
+    --cyan-soft: rgb(var(--hud-rgb) / 0.35);
+    --blue: rgb(var(--hud-rgb) / 0.7);
+    --border: rgb(var(--hud-rgb) / 0.25);
+    --text: rgb(var(--hud-rgb));
+    --muted: rgb(var(--hud-rgb) / 0.65);
 }
 
 * {
@@ -40,7 +43,7 @@ body {
     background:
         radial-gradient(
             circle at center,
-            rgba(20, 80, 110, 0.12),
+            rgb(var(--hud-rgb) / 0.12),
             transparent 35%
         ),
         radial-gradient(
@@ -94,8 +97,8 @@ body.webgl-ready .reactor > * {
     letter-spacing: 8px;
     color: var(--cyan);
     text-shadow:
-        0 0 10px rgba(98, 230, 255, 0.7),
-        0 0 35px rgba(98, 230, 255, 0.25);
+        0 0 10px rgb(var(--hud-rgb) / 0.7),
+        0 0 35px rgb(var(--hud-rgb) / 0.25);
 }
 
 .subtitle {
@@ -132,8 +135,8 @@ body.webgl-ready .reactor > * {
     background:
         linear-gradient(
             135deg,
-            rgba(10, 30, 45, 0.8),
-            rgba(2, 9, 15, 0.55)
+            rgb(var(--hud-rgb) / 0.10),
+            rgb(var(--hud-rgb) / 0.025)
         );
     backdrop-filter: blur(8px);
     z-index: 5;
@@ -158,7 +161,7 @@ body.webgl-ready .reactor > * {
     display: flex;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid rgba(98, 230, 255, 0.08);
+    border-bottom: 1px solid rgb(var(--hud-rgb) / 0.08);
     font-size: 9px;
     letter-spacing: 2px;
 }
@@ -202,7 +205,6 @@ body.webgl-ready .reactor > * {
 }
 
 .reactor {
-    --cyan: var(--reactor-colour, #62e6ff);
     position: relative;
     width: 360px;
     height: 360px;
@@ -216,8 +218,8 @@ body.webgl-ready .reactor > * {
     border-radius: 50%;
     border: 1px solid var(--cyan);
     box-shadow:
-        0 0 15px rgba(98, 230, 255, 0.2),
-        inset 0 0 20px rgba(98, 230, 255, 0.08);
+        0 0 15px rgb(var(--hud-rgb) / 0.2),
+        inset 0 0 20px rgb(var(--hud-rgb) / 0.08);
 }
 
 .ring-outer {
@@ -230,14 +232,14 @@ body.webgl-ready .reactor > * {
 .ring-middle {
     width: 275px;
     height: 275px;
-    border-color: rgba(98, 230, 255, 0.5);
+    border-color: rgb(var(--hud-rgb) / 0.5);
     animation: rotateReverse 11s linear infinite;
 }
 
 .ring-inner {
     width: 205px;
     height: 205px;
-    border-color: rgba(98, 230, 255, 0.8);
+    border-color: rgb(var(--hud-rgb) / 0.8);
     animation: rotate 7s linear infinite;
 }
 
@@ -279,12 +281,12 @@ body.webgl-ready .reactor > * {
             circle,
             #dffcff 0%,
             var(--cyan) 22%,
-            #147f9e 48%,
+            rgb(var(--hud-rgb) / 0.5) 48%,
             transparent 70%
         );
     box-shadow:
         0 0 25px var(--cyan),
-        0 0 70px rgba(98, 230, 255, 0.45);
+        0 0 70px rgb(var(--hud-rgb) / 0.45);
     animation: corePulse 2s ease-in-out infinite;
 }
 
@@ -302,7 +304,7 @@ body.webgl-ready .reactor > * {
     position: absolute;
     inset: -20px;
     border-radius: 50%;
-    border: 1px solid rgba(98, 230, 255, 0.4);
+    border: 1px solid rgb(var(--hud-rgb) / 0.4);
     animation: pulseRing 2s ease-out infinite;
 }
 
@@ -318,9 +320,8 @@ body.webgl-ready .reactor > * {
     display: block;
     width: 3px;
     height: 8px;
-    background: var(--reactor-colour, var(--cyan));
-    box-shadow: 0 0 8px var(--reactor-colour, var(--cyan));
-    transition: background-color 1s ease, box-shadow 1s ease;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
     animation: wave 1s ease-in-out infinite;
 }
 
@@ -351,24 +352,23 @@ body.state-listening .core {
 }
 
 body.state-thinking {
-    --reactor-colour: #ffd84f;
+    --hud-rgb: 255 216 79;
 }
 
 body.state-executing {
-    --reactor-colour: #ff972f;
+    --hud-rgb: 255 151 47;
 }
 
 body.state-speaking {
-    --reactor-colour: #54ff9c;
+    --hud-rgb: 84 255 156;
 }
 
 body.state-error {
-    --reactor-colour: #ff5a4f;
+    --hud-rgb: 255 90 79;
 }
 
 #stateLabel {
-    color: var(--reactor-colour, var(--cyan));
-    transition: color 1s ease;
+    color: var(--cyan);
 }
 
 body.state-thinking .ring-inner {

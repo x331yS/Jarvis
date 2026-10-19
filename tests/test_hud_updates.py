@@ -133,6 +133,10 @@ def test_lost_webgl_context_keeps_the_css_reactor_visible_until_restored(hud):
     assert supported, "The test renderer must support context loss simulation"
     hud.wait_for_function("!document.body.classList.contains('webgl-ready')")
     assert hud.locator(".reactor .core").evaluate("element => getComputedStyle(element).display") != "none"
+    hud.evaluate("window.jarvisHUD.setState('speaking')")
+    assert hud.locator(".brand").evaluate("element => getComputedStyle(element).color") == hud.locator(
+        ".ring-outer"
+    ).evaluate("element => getComputedStyle(element).borderTopColor")
     hud.evaluate("window.restoreHudContext()")
     hud.wait_for_function("document.body.classList.contains('webgl-ready')")
 
@@ -181,6 +185,32 @@ def test_processing_colour_progresses_from_yellow_towards_orange(hud):
     orange = _reactor_hue(hud)
     assert 0.04 <= orange < yellow <= 0.20
     assert yellow - orange > 0.01
+
+
+@pytest.mark.parametrize("state", ["idle", "thinking", "speaking", "error"])
+def test_entire_hud_shares_the_rendered_reactor_palette(hud, state):
+    hud.evaluate("(state) => window.jarvisHUD.setState(state)", state)
+    if state == "idle":
+        hud.evaluate("window.hudTimeOffset += 24000")
+    reactor_hue = _reactor_hue(hud)
+    colours = hud.evaluate("""() => {
+        const colour = (selector, property) => getComputedStyle(document.querySelector(selector))[property];
+        return [
+            colour('.brand', 'color'), colour('.panel-title', 'color'),
+            colour('.panel', 'borderTopColor'), colour('.metric', 'borderBottomColor'),
+            colour('.metric strong', 'color'), colour('.subtitle', 'color'),
+            colour('.activity-time', 'color'), colour('.prompt', 'color'),
+            colour('.waveform span', 'backgroundColor'), colour('#stateLabel', 'color'),
+            colour('.ring-middle', 'borderTopColor'), colour('.core-pulse', 'borderTopColor')
+        ];
+    }""")
+    import re
+
+    for colour in colours:
+        channels = [float(value) / 255 for value in re.findall(r"[\d.]+", colour)[:3]]
+        hue = colorsys.rgb_to_hsv(*channels)[0]
+        distance = abs(hue - reactor_hue)
+        assert min(distance, 1 - distance) < 0.07, (state, colour, reactor_hue)
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows rendering contract")

@@ -39,6 +39,7 @@
     canvas.addEventListener("webglcontextlost", event => {
         event.preventDefault();
         contextLost = true;
+        document.body.style.removeProperty("--hud-rgb");
         fallBack("WebGL context lost");
     });
     canvas.addEventListener("webglcontextrestored", () => {
@@ -389,6 +390,8 @@
     let elapsed = 0;
     let previousTarget = null;
     let stateStarted = 0;
+    let paletteUpdated = -Infinity;
+    let paletteHex = "";
 
     function animate() {
         requestAnimationFrame(animate);
@@ -416,6 +419,15 @@
         live.wave += (target.wave - live.wave) * ease;
         live.glow += (target.glow - live.glow) * ease;
         live.color.lerp(targetColor, ease);
+        if (clock.elapsedTime - paletteUpdated >= 0.05) {
+            paletteUpdated = clock.elapsedTime;
+            const hex = live.color.getHexString();
+            if (hex !== paletteHex) {
+                paletteHex = hex;
+                const channels = hex.match(/../g).map(channel => parseInt(channel, 16));
+                document.body.style.setProperty("--hud-rgb", channels.join(" "));
+            }
+        }
 
         elapsed += delta;
         const spin = delta * live.spin;
