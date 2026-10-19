@@ -23,6 +23,9 @@ def bundle_dir():
     "PyQt6/Qt6/translations/qtwebengine_locales/en-US.pak",
     "desktop_app/web/index.html",
     "desktop_app/js/main.js",
+    "desktop_app/js/three_scene.js",
+    "desktop_app/js/vendor/three.min.js",
+    "desktop_app/js/vendor/three.LICENSE",
     "desktop_app/css/jarvis.css",
 ])
 def test_hud_runtime_asset_is_bundled(bundle_dir, relative_path):

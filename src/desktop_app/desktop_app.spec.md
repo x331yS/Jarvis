@@ -110,6 +110,7 @@ The central controller that manages:
 ### HUD rendering and updates
 
 - The native window, web view and WebEngine page share an opaque `#02060b` background, matching the local HTML theme.
+- The local Three.js scene draws the animated reactor, globe, orbits and particles on an opaque WebGL canvas. Its library and licence ship with the application; rendering requires no network access. The CSS reactor remains visible when WebGL is unavailable or its context is lost, and the scene resumes after context restoration.
 - State and context updates travel through QWebChannel only. The page loads once; ordinary activity does not reload it or reconstruct its visual tree.
 - The bridge publishes only changed state/context values. JavaScript also ignores repeated values, preserving existing activity rows and animation progress. Notifications remain events and can repeat.
 - On WebChannel connection, a snapshot supplies the current state and context, including changes made before the page became ready.

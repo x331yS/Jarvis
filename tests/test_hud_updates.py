@@ -104,6 +104,33 @@ def test_error_state_does_not_replace_the_full_page_compositing_surface(hud):
     assert hud.evaluate('getComputedStyle(document.body).filter') == "none"
     assert hud.locator("#modeValue").inner_text() == "ERROR"
 
+def test_three_dimensional_reactor_uses_an_opaque_live_surface(hud):
+    assert hud.locator("body").evaluate("body => body.classList.contains('webgl-ready')")
+    assert hud.locator(".reactor .core").evaluate("element => getComputedStyle(element).display") == "none"
+    info = hud.evaluate("""() => {
+        const canvas = document.getElementById("space");
+        const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+        return {alpha: gl.getContextAttributes().alpha, lost: gl.isContextLost()};
+    }""")
+    assert info == {"alpha": False, "lost": False}
+
+
+def test_lost_webgl_context_keeps_the_css_reactor_visible_until_restored(hud):
+    supported = hud.evaluate("""() => {
+        const canvas = document.getElementById("space");
+        const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+        const extension = gl && gl.getExtension("WEBGL_lose_context");
+        if (!extension) return false;
+        window.restoreHudContext = () => extension.restoreContext();
+        extension.loseContext();
+        return true;
+    }""")
+    assert supported, "The test renderer must support context loss simulation"
+    hud.wait_for_function("!document.body.classList.contains('webgl-ready')")
+    assert hud.locator(".reactor .core").evaluate("element => getComputedStyle(element).display") != "none"
+    hud.evaluate("window.restoreHudContext()")
+    hud.wait_for_function("document.body.classList.contains('webgl-ready')")
+
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows rendering contract")
 def test_native_window_and_web_surface_share_an_opaque_background():

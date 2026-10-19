@@ -69,6 +69,14 @@ body {
     z-index: 5;
 }
 
+body.webgl-ready #space {
+    opacity: 1;
+}
+
+body.webgl-ready .reactor > * {
+    display: none;
+}
+
 .top-bar {
     top: 30px;
 }
