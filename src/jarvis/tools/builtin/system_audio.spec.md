@@ -12,6 +12,7 @@ external services or shell commands.
 - Results contain device data and observed volume, not generated prose.
 - Each invocation initialises and releases COM on its calling thread.
 - The tool is discoverable through the standard builtin registry, planner and router.
+- The tool description includes action values and argument semantics so text-tool mode carries the same contract as native JSON schemas.
 - Piper resolves the fresh Windows default playback endpoint for each utterance through MME or DirectSound, without reinitialising PortAudio or interrupting microphone capture.
 - Other platforms return an explicit unsupported-platform error.
 

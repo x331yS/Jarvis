@@ -1,6 +1,7 @@
 """Local live evaluations for French replies and Windows audio commands."""
 
 import json
+from unittest.mock import patch
 
 import pytest
 
@@ -83,3 +84,36 @@ def test_french_audio_tool_arguments(query, action, device, change):
         assert "volume" not in args and "change" not in args
     if change is not None:
         assert args["change"] == change
+
+
+@pytest.mark.eval
+@requires_judge_llm
+def test_french_audio_request_routes_through_the_reply_engine(
+    mock_config, eval_db, eval_dialogue_memory,
+):
+    from jarvis.reply.engine import run_reply_engine
+    from jarvis.tools.types import ToolExecutionResult
+
+    mock_config.llm_chat_model = JUDGE_MODEL
+    mock_config.fast_model = JUDGE_MODEL
+    mock_config.reply_language = "French"
+    invoked = []
+
+    def execute(db, cfg, tool_name, tool_args, **kwargs):
+        invoked.append((tool_name, tool_args))
+        return ToolExecutionResult(
+            success=True, reply_text=json.dumps({"device": "Focusrite USB Audio", "volume": 60}),
+        )
+
+    with patch("jarvis.reply.engine.run_tool_with_retries", side_effect=execute):
+        response = run_reply_engine(
+            db=eval_db, cfg=mock_config, tts=None,
+            text="Passe la sortie audio sur la Focusrite",
+            dialogue_memory=eval_dialogue_memory,
+        )
+    assert any(
+        name == "systemAudio" and args.get("action") == "set_output"
+        and "focusrite" in args.get("device", "").casefold()
+        for name, args in invoked
+    ), (invoked, response)
+    assert response
