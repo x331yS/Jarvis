@@ -1,0 +1,151 @@
+"""HUD updates must be idempotent and use one bridge delivery path."""
+
+import json
+from pathlib import Path
+import os
+import subprocess
+import sys
+
+import pytest
+
+from desktop_app.web_ui_bridge import JarvisWebBridge
+
+
+def test_repeated_state_does_not_publish_another_transition():
+    bridge = JarvisWebBridge()
+    observed = []
+    bridge.state_changed.connect(observed.append)
+    bridge.set_state("speaking")
+    bridge.set_state("speaking")
+    bridge.set_state("idle")
+    assert observed == ["speaking", "idle"]
+
+
+def test_context_only_publishes_changes_and_snapshot_preserves_current_state():
+    bridge = JarvisWebBridge()
+    observed = []
+    bridge.context_changed.connect(lambda key, value: observed.append((key, value)))
+    bridge.set_state("thinking")
+    bridge.set_context("model", "local-model")
+    bridge.set_context("model", "local-model")
+    assert observed == [("model", "local-model")]
+    assert bridge.snapshot() == {"state": "thinking", "context": {"model": "local-model"}}
+
+
+@pytest.fixture
+def hud():
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 1280, "height": 900})
+        page.set_default_timeout(5000)
+        page.add_init_script("""
+            window.qt = {webChannelTransport: {}};
+            window.QWebChannel = function(transport, ready) {
+                ready({objects: {jarvis: {
+                    state_changed: {connect: callback => window.emitState = callback},
+                    context_changed: {connect: callback => window.emitContext = callback},
+                    snapshot: callback => callback({
+                        state: "thinking", context: {model: "local-model"}
+                    })
+                }}});
+            };
+        """)
+        page.goto((Path(__file__).parents[1] / "src" / "desktop_app" / "web" / "index.html").as_uri())
+        page.wait_for_function("!!window.jarvisHUD && typeof window.emitState === 'function'")
+        yield page
+        browser.close()
+
+
+def test_repeated_frontend_state_has_no_dom_churn(hud):
+    result = hud.evaluate("""
+        (() => {
+            window.jarvisHUD.setState("speaking");
+            const observer = new MutationObserver(() => {});
+            observer.observe(document.body, {subtree: true, childList: true, attributes: true, characterData: true});
+            const first = document.getElementById("activity").firstChild;
+            for (let i = 0; i < 20; i++) window.jarvisHUD.setState("speaking");
+            const count = observer.takeRecords().length;
+            observer.disconnect();
+            return JSON.stringify({
+                mutations: count,
+                sameRow: first === document.getElementById("activity").firstChild
+            });
+        })()
+    """)
+    assert json.loads(result) == {"mutations": 0, "sameRow": True}
+
+
+def test_one_bridge_transition_creates_one_activity_entry(hud):
+    hud.evaluate('document.getElementById("activity").replaceChildren();')
+    hud.evaluate('window.emitState("speaking"); window.emitState("speaking");')
+    assert hud.locator("#modeValue").inner_text() == "SPEAKING"
+    assert hud.locator("#activity > div").count() == 1
+
+
+def test_initial_snapshot_restores_state_and_context(hud):
+    assert hud.locator("#modeValue").inner_text() == "THINKING"
+    assert hud.locator("#modelValue").inner_text() == "local-model"
+
+
+def test_repeated_context_does_not_replace_activity(hud):
+    result = hud.evaluate("""() => {
+        window.emitContext("model", "other-model");
+        const first = document.getElementById("activity").firstChild;
+        window.emitContext("model", "other-model");
+        return first === document.getElementById("activity").firstChild;
+    }""")
+    assert result
+
+
+def test_error_state_does_not_replace_the_full_page_compositing_surface(hud):
+    hud.evaluate('window.emitState("error");')
+    assert hud.evaluate('getComputedStyle(document.body).filter') == "none"
+    assert hud.locator("#modeValue").inner_text() == "ERROR"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows rendering contract")
+def test_native_window_and_web_surface_share_an_opaque_background():
+    script = """
+import json
+import desktop_app.app
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QPalette
+from PyQt6.QtCore import Qt
+from desktop_app.jarvis_hud import JarvisHudWindow
+app = QApplication(["hud-background-test"])
+window = JarvisHudWindow()
+print(json.dumps({
+    "window": window.palette().color(QPalette.ColorRole.Window).name(),
+    "web": window.web_view.palette().color(QPalette.ColorRole.Window).name(),
+    "page": window.web_view.page().backgroundColor().name(),
+    "translucent": window.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground),
+}))
+window.close()
+"""
+    root = Path(__file__).parents[1]
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=root, capture_output=True, text=True, timeout=20,
+        env={**os.environ, "PYTHONPATH": str(root / "src")},
+    )
+    assert result.returncode == 0, result.stderr
+    colours = json.loads(result.stdout)
+    assert colours["window"] == colours["web"] == colours["page"]
+    assert not colours["translucent"]
+
+
+@pytest.mark.parametrize("message,expected", [
+    ("Listening for follow-up (3s)...", "listening"),
+    ("Returning to wake word mode", "idle"),
+    ("Generating response...", "thinking"),
+    ("TTS playing response", "speaking"),
+])
+def test_log_events_have_consistent_states(message, expected):
+    from desktop_app.jarvis_hud import JarvisHudWindow
+
+    bridge = JarvisWebBridge()
+    window = type("Window", (), {"bridge": bridge})()
+    JarvisHudWindow.on_log(window, message)
+    assert bridge.state() == expected

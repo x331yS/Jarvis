@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>JARVIS</title>
+
+    <link rel="stylesheet" href="../css/jarvis.css">
+
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+</head>
+
+<body>
+    <div id="hud">
+
+        <canvas id="space"></canvas>
+
+        <div class="top-bar">
+            <div>
+                <div class="brand">J.A.R.V.I.S.</div>
+                <div class="subtitle">LOCAL INTELLIGENCE SYSTEM</div>
+            </div>
+
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <span id="statusText">ONLINE</span>
+            </div>
+        </div>
+
+        <div class="left-panel panel">
+            <div class="panel-title">SYSTEM</div>
+
+            <div class="metric">
+                <span>MODEL</span>
+                <strong id="modelValue">FAST</strong>
+            </div>
+
+            <div class="metric">
+                <span>MODE</span>
+                <strong id="modeValue">IDLE</strong>
+            </div>
+
+            <div class="metric">
+                <span>NETWORK</span>
+                <strong>LOCAL</strong>
+            </div>
+
+            <div class="metric">
+                <span>VOICE</span>
+                <strong>READY</strong>
+            </div>
+        </div>
+
+        <div class="right-panel panel">
+            <div class="panel-title">ACTIVITY</div>
+
+            <div id="activity">
+                <div class="activity-line">
+                    <span class="activity-time">--:--</span>
+                    <span>Awaiting command...</span>
+                </div>
+            </div>
+        </div>
+
+        <main class="reactor-container">
+
+            <div class="reactor-label">
+                <span id="stateLabel">STANDBY</span>
+            </div>
+
+            <div class="reactor">
+                <div class="ring ring-outer"></div>
+                <div class="ring ring-middle"></div>
+                <div class="ring ring-inner"></div>
+
+                <div class="arc arc-1"></div>
+                <div class="arc arc-2"></div>
+                <div class="arc arc-3"></div>
+
+                <div class="core">
+                    <div class="core-inner"></div>
+                    <div class="core-pulse"></div>
+                </div>
+            </div>
+
+            <div class="waveform">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+
+            <div class="prompt">
+                <span class="prompt-prefix">JARVIS</span>
+                <span id="promptText">Awaiting voice input</span>
+            </div>
+
+        </main>
+
+        <div class="bottom-bar">
+            <div>VOICE INTERFACE</div>
+            <div id="clock">--:--:--</div>
+            <div>ALL SYSTEMS NOMINAL</div>
+        </div>
+
+    </div>
+
+    <script src="../js/three_scene.js"></script>
+    <script src="../js/panels.js"></script>
+    <script src="../js/main.js"></script>
+</body>
+</html>

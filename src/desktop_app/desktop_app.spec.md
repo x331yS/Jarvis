@@ -104,6 +104,17 @@ The central controller that manages:
 | **DictationHistoryWindow** | Scrollable list of past dictations with copy/delete/clear actions |
 | **ChatWindow** | Text chat interface alongside voice; shares one conversation with the voice path and is enabled only while the daemon is running (see `chat_window.spec.md`) |
 
+### HUD rendering and updates
+
+- The native window, web view and WebEngine page share an opaque `#02060b` background, matching the local HTML theme.
+- State and context updates travel through QWebChannel only. The page loads once; ordinary activity does not reload it or reconstruct its visual tree.
+- The bridge publishes only changed state/context values. JavaScript also ignores repeated values, preserving existing activity rows and animation progress. Notifications remain events and can repeat.
+- On WebChannel connection, a snapshot supplies the current state and context, including changes made before the page became ready.
+- State classes are replaced atomically. Error styling filters only the reactor, not the whole page's canvas, panels and clock.
+- Follow-up listening is `listening`; returning to wake-word mode is `idle`.
+- Diagnostics record actual HUD state transitions through `debug_log`, not repeated identical updates.
+- Browser regression tests verify zero DOM mutations for repeated states, one activity entry per transition, snapshot restoration and local error styling. A native Windows test checks matching opaque background surfaces.
+
 ### Activity log and downloads
 
 - The log viewer uses a timestamped timeline with distinct success, warning and error colours from the shared theme. Messages are inserted as plain text, including tracebacks.
